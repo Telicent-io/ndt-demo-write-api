@@ -118,11 +118,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-
+#Local dictionaries that are used to check that certain classes exist before posting references to them
 assessment_classes = {}
 building_state_classes = {}
-
 
 def run_sparql_query(query:str):
     get_uri = "http://"+jenaURL+":"+jenaPort+"/"+ ontoDataset +"/query"
@@ -226,6 +224,10 @@ def post_building_state(per: IesPerson):
 
 @app.post("/buildings/states")
 def post_building_state(bs: IesState):
+    if bs.stateType not in building_state_classes:
+        get_building_states()
+        if bs.stateType not in building_state_classes:
+            raise HTTPException(status_code=404, detail="Building State Class: " + bs.stateType + " not found")
     mint_uri(bs)
     if bs.startDateTime:
         start_date = "http://iso.org/iso8601#"+bs.startDateTime.isoformat().replace(" ","T")
