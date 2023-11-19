@@ -40,6 +40,7 @@ class IesThing(BaseModel):
         uri - the uri of the created data object
     """
     uri:str = None 
+    securityLabel: str = None
 
 class IesAssessment(IesThing):
     """
@@ -90,87 +91,17 @@ class IesPerson(IesThing):
 
 
 #Checks to see if an iesThing has a URI - if not, it mints a new uri using the data_uri_stub
+#Also checks if a security label has been set
 def mint_uri(item:IesThing):
     if item.uri == None:
         item.uri = data_uri_stub+str(uuid.uuid4())
+    if item.securityLabel == None:
+        item.securityLabel = default_security_label
     return item
 
+with open('README.md', 'r') as file:
+    description = file.read()
 
-
-description = """
-The NDT Assessment Write-Back API was developed to provide NDT users a strictly controlled way to create new data in a Telicent CORE deployment.
-
-The data creation is centred around states of buildings and the IES Assessment event.
-
-# Getting Started
-
-The first thing to do is to request which building state classes are available - call the /buildings/states/classes endpoint. That will return a list of class objects - e.g. 
-
-    [
-        {
-            "uri": "http://nationaldigitaltwin.gov.uk/ontology#BuildingState",
-            "shortName": "ndt:BuildingState",
-            "superClasses": [
-                "http://ies.data.gov.uk/ontology/ies4#LocationState"
-            ],
-            "description": []
-        },
-        {
-            "uri": "http://gov.uk/government/organisations/department-for-levelling-up-housing-and-communities/ontology/epc#BuildingWithEnergyRatingOfA",
-            "shortName": "http://gov.uk/government/organisations/department-for-levelling-up-housing-and-communities/ontology/epc#BuildingWithEnergyRatingOfA",
-            "superClasses": [
-                "http://nationaldigitaltwin.gov.uk/ontology#BuildingState"
-            ],
-            "description": []
-        },
-        {
-            "uri": "http://gov.uk/government/organisations/department-for-levelling-up-housing-and-communities/ontology/epc#BuildingWithEnergyRatingOfB",
-            "shortName": "http://gov.uk/government/organisations/department-for-levelling-up-housing-and-communities/ontology/epc#BuildingWithEnergyRatingOfB",
-            "superClasses": [
-                "http://nationaldigitaltwin.gov.uk/ontology#BuildingState"
-            ],
-            "description": []
-        }
-    ]
-
-You will also need to create a new Person (or have the URI of an existing one). To create a new Person, POST to the /people endpoint with a payload such as:
-
-    {
-        "givenName" : "Anne",
-        "surname" : "Smith"
-    }
-
-The endpoint will return the URI for the new Person instance (you can also provide your own URI if you want to set a specific one). In this example, let's say it returned a uri of:
-
-    http://telicent.io/data/d6cfb50d-c72c-40a8-a5e9-5b5a717aa730
-
-
-
-You then need to create a new state instance, and apply it to the building. That means posting an iesState object to the /buildings/states endpoint. An example would be:
-
-    {
-        "uri":"http://myItem.com/my_building_state_1",
-        "stateOf":"http://myItem.com/my_building",
-        "stateType":"http://gov.uk/government/organisations/department-for-levelling-up-housing-and-communities/ontology/epc#BuildingWithEnergyRatingOfD",
-        "startDateTime":"2023-11-17T09:00:00",
-        "endDateTime":"2023-11-17T17:00:00"
-    }
-
-The start and end datetimes specify the temporal extent of the state (if known...if not, you can leave them blank). The stateOf property refers to the URI of the building. The stateType should be one of the classes returned by the /buildings/states/classes endpoint
-
-You can also optionally provide a uri property for the state. If no uri is provided, one will be minted, and returned in the http response body.
-
-All that remains after that is to put some assessment information into the system, by posting to the /assessments/assess-to-be-true endpoint:
-
-    {
-        "assessedItem":"http://myItem.com/my_building_state_1",
-        "assessor":"http://telicent.io/data/d6cfb50d-c72c-40a8-a5e9-5b5a717aa730",
-        "inPeriod":"2023-11-19"
-    }
-
-The assessedItem and assessor are the URIs we've already produced for the state and the person. The inPeriod property is the date of the assessment in ISO8601 format. If you don't provide the inPeriod property, the API will just use today's date.
-
-"""
 
 app = FastAPI(title="NDT Assessment Write-Back API",
               description=description,
@@ -191,6 +122,7 @@ app.add_middleware(
 
 assessment_classes = {}
 building_state_classes = {}
+
 
 def run_sparql_query(query:str):
     get_uri = "http://"+jenaURL+":"+jenaPort+"/"+ ontoDataset +"/query"
@@ -289,7 +221,7 @@ def post_building_state(per: IesPerson):
                 <{per.uri+"_GIVENNAME"}> ies:representationValue "{per.givenName}" .
             }}'''
     print(query)
-    run_sparql_update(query=query)
+    run_sparql_update(query=query,securityLabel=per.securityLabel)
     return per.uri
 
 @app.post("/buildings/states")
@@ -324,7 +256,7 @@ def post_building_state(bs: IesState):
                 {end_sparql}
             }}'''
     print(query)
-    run_sparql_update(query=query)
+    run_sparql_update(query=query,securityLabel=bs.securityLabel)
     return bs.uri
 
 @app.post("/accounts")
@@ -359,7 +291,7 @@ def post_account(acc: IesAccount):
             {name_sparql}
         }}'''
     print(query)
-    run_sparql_update(query=query)
+    run_sparql_update(query=query,securityLabel=acc.securityLabel)
     return acc.uri
 
 @app.post("/assessments/assess-to-be-true")
@@ -374,7 +306,7 @@ def post_assess_to_be_true(ass: IesAssessToBeTrue):
                 <{ass.uri}> ies:assessor <{ass.assessor}> .
                 <{ass.uri}> ies:inPeriod "{ass.inPeriod}"
             }}'''
-    run_sparql_update(query=query)
+    run_sparql_update(query=query,securityLabel=ass.securityLabel)
 
     return ass.uri
 
@@ -383,6 +315,22 @@ def post_assess_to_be_true(ass: IesAssessToBeTrue):
 def post_uri_stub(uri:str):
     data_uri_stub = uri
     return data_uri_stub
+
+@app.get("/uri-stub",
+          description="Gets the  default uri stub used by the API when generating data uris")
+def get_uri_stub():
+    return data_uri_stub
+
+@app.post("/default-security-label",
+          description="Sets the default security label used when writing data")
+def post_default_security_label(label:str):
+    default_security_label = label
+    return default_security_label
+
+@app.get("/default-security-label",
+          description="Gets the default security label used when writing data")
+def get_default_security_label():
+    return default_security_label
 
 @app.post("/assessments")
 def post_assessment(ass: IesAssessment, req:Request):
@@ -422,7 +370,7 @@ def post_assessment(ass: IesAssessment, req:Request):
                 <{ass.uri}> ies:assessor <{user}> .
             }}'''
             print(query)
-            run_sparql_update(query=query)
+            run_sparql_update(query=query,securityLabel=ass.securityLabel)
 
             return ass.uri
     raise HTTPException(status_code=400, detail="Could not create assessment")    

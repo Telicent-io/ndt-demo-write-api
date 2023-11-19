@@ -85,3 +85,9 @@ All that remains after that is to put some assessment information into the syste
 The assessedItem and assessor are the URIs we've already produced for the state and the person. The inPeriod property is the date of the assessment in ISO8601 format. If you don't provide the inPeriod property, the API will just use today's date.
 
 An Insomnia (https://insomnia.rest/) test suite is also provided as a JSON config file - `ndt-write-insomnia.json`
+
+## Security
+
+Telicent CORE uses a label-based approach to access control, based on the UK Govt Enterprise Data Headers standard - policy based access control, in other words. In all the IES post operations, you can set a securityLabel property that will override the default label.
+
+You can also get and set the default security label. 
