@@ -10,7 +10,6 @@ import os
 import requests
 import uuid
 
-
 #If you're running this yourself, and the Jena instance you're using is not local, you can used environment variables to override
 jenaURL = os.getenv("JENA_URL", "localhost")
 jenaPort = os.getenv("JENA_PORT", "3030")
@@ -218,7 +217,6 @@ def post_building_state(per: IesPerson):
                 <{per.uri+"_GIVENNAME"}> ies:inRepresentation <{per.uri+"_NAME"}> .
                 <{per.uri+"_GIVENNAME"}> ies:representationValue "{per.givenName}" .
             }}'''
-    print(query)
     run_sparql_update(query=query,securityLabel=per.securityLabel)
     return per.uri
 
@@ -257,7 +255,6 @@ def post_building_state(bs: IesState):
                 {start_sparql}
                 {end_sparql}
             }}'''
-    print(query)
     run_sparql_update(query=query,securityLabel=bs.securityLabel)
     return bs.uri
 
@@ -292,7 +289,6 @@ def post_account(acc: IesAccount):
             {email_sparql}
             {name_sparql}
         }}'''
-    print(query)
     run_sparql_update(query=query,securityLabel=acc.securityLabel)
     return acc.uri
 
@@ -371,7 +367,6 @@ def post_assessment(ass: IesAssessment, req:Request):
                 <{ass.uri}> ies:assessed <{state_uri}> .
                 <{ass.uri}> ies:assessor <{user}> .
             }}'''
-            print(query)
             run_sparql_update(query=query,securityLabel=ass.securityLabel)
 
             return ass.uri
