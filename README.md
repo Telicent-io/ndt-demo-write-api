@@ -14,7 +14,7 @@ If you want to run this locally, you'll need to:
 * create two datasets in Fuseki - ONTOLOGY and KNOWLEDGE
 * load the ttl files in this repo into the ONTOLOGY dataset (again, use the Fuseki UI) - this will provide the API with access to the ontologies
 * pip install all the modules listed in requirements.txt
-* run the api.py file (Python 3.9 or later)
+* run the api.py file or the run-api.sh script (Python 3.9 or later) 
 
 ## Using the API
 
@@ -83,3 +83,5 @@ All that remains after that is to put some assessment information into the syste
     }
 
 The assessedItem and assessor are the URIs we've already produced for the state and the person. The inPeriod property is the date of the assessment in ISO8601 format. If you don't provide the inPeriod property, the API will just use today's date.
+
+An Insomnia (https://insomnia.rest/) test suite is also provided as a JSON config file - `ndt-write-insomnia.json`
