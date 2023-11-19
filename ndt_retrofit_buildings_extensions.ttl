@@ -1,0 +1,58 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ies: <http://ies.data.gov.uk/ontology/ies4#> .
+@prefix epc: <http://gov.uk/government/organisations/department-for-levelling-up-housing-and-communities/ontology/epc#> .
+@prefix ndt: <http://nationaldigitaltwin.gov.uk/ontology#> .
+@prefix geoplace: <https://www.geoplace.co.uk/addresses-streets/location-data/the-uprn#> .
+
+ndt:BuildingState       rdf:type            rdfs:Class .
+ndt:BuildingState       rdfs:subClassOf     ies:LocationState .
+ndt:Building            rdf:type            rdfs:Class .
+ndt:Building            rdfs:subClassOf     ies:Location .
+ndt:Building            rdfs:subClassOf     ndt:BuildingState .
+
+# property types
+ndt:House           rdf:type            rdfs:Class .
+ndt:House           rdfs:subClassOf     ndt:Building .
+ndt:Flat            rdf:type            rdfs:Class .
+ndt:Flat            rdfs:subClassOf     ndt:Building .
+ndt:Bungalow        rdf:type            rdfs:Class .
+ndt:Bungalow        rdfs:subClassOf     ndt:Building .
+ndt:Maisonette      rdf:type            rdfs:Class .
+ndt:Maisonette      rdfs:subClassOf     ndt:Building .
+ndt:ParkHome        rdf:type            rdfs:Class .
+ndt:ParkHome        rdfs:subClassOf     ndt:Building .
+
+# build form types
+ndt:SemiDetached            rdf:type            rdfs:Class .
+ndt:SemiDetached            rdfs:subClassOf     ndt:Building .
+ndt:EnclosedEndTerrace      rdf:type            rdfs:Class .
+ndt:EnclosedEndTerrace      rdfs:subClassOf     ndt:Building .
+ndt:Detached                rdf:type            rdfs:Class .
+ndt:Detached                rdfs:subClassOf     ndt:Building .
+ndt:MidTerrace              rdf:type            rdfs:Class .
+ndt:MidTerrace              rdfs:subClassOf     ndt:Building .
+ndt:EnclosedEndTerrace      rdf:type            rdfs:Class .
+ndt:EnclosedEndTerrace      rdfs:subClassOf     ndt:Building .
+ndt:EnclosedMidTerrace      rdf:type            rdfs:Class .
+ndt:EnclosedMidTerrace      rdfs:subClassOf     ndt:Building .
+
+
+geoplace:UniquePropertyReferenceNumber      rdf:type             rdfs:Class .
+geoplace:UniquePropertyReferenceNumber      rdfs:subClassOf      ies:GeoIdentity .
+
+# epc building categories
+epc:BuildingWithEnergyRatingOfA   rdf:type            rdfs:Class .
+epc:BuildingWithEnergyRatingOfA   rdfs:subClassOf     ndt:BuildingState .
+epc:BuildingWithEnergyRatingOfB   rdf:type            rdfs:Class .
+epc:BuildingWithEnergyRatingOfB   rdfs:subClassOf     ndt:BuildingState .
+epc:BuildingWithEnergyRatingOfC   rdf:type            rdfs:Class .
+epc:BuildingWithEnergyRatingOfC   rdfs:subClassOf     ndt:BuildingState .
+epc:BuildingWithEnergyRatingOfD   rdf:type            rdfs:Class .
+epc:BuildingWithEnergyRatingOfD   rdfs:subClassOf     ndt:BuildingState .
+epc:BuildingWithEnergyRatingOfE   rdf:type            rdfs:Class .
+epc:BuildingWithEnergyRatingOfE   rdfs:subClassOf     ndt:BuildingState .
+epc:BuildingWithEnergyRatingOfF   rdf:type            rdfs:Class .
+epc:BuildingWithEnergyRatingOfF   rdfs:subClassOf     ndt:BuildingState .
+epc:BuildingWithEnergyRatingOfG   rdf:type            rdfs:Class .
+epc:BuildingWithEnergyRatingOfG   rdfs:subClassOf     ndt:BuildingState .
