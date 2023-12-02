@@ -11,8 +11,8 @@ If you want to run this locally, you'll need to:
 
 * install Apache Jena Fuseki - https://jena.apache.org/download/index.cgi
 * run Apache Jena Fuseki
-* create two datasets in Fuseki - ONTOLOGY and KNOWLEDGE
-* load the ttl files in this repo into the ONTOLOGY dataset (again, use the Fuseki UI) - this will provide the API with access to the ontologies
+* create two datasets in Fuseki - ontology and knowledge
+* load the ttl files in this repo into the ontology dataset (again, use the Fuseki UI) - this will provide the API with access to the ontologies
 * pip install all the modules listed in requirements.txt
 * run the api.py file or the run-api.sh script (Python 3.9 or later) 
 

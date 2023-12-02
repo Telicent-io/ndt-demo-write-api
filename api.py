@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Optional
 from pydantic import BaseModel
 from datetime import datetime, date
 from typing import List, Dict
@@ -31,6 +31,7 @@ PREFIX ies: <{ies}>
 PREFIX tel: <http://telicent.io/ontology/>
 PREFIX data: <{data_uri_stub}>
 PREFIX ndt: <http://nationaldigitaltwin.gov.uk/ontology#>
+PREFIX gp: <https://www.geoplace.co.uk/addresses-streets/location-data/the-uprn#>
 """
 
 class IesThing(BaseModel):
@@ -39,7 +40,14 @@ class IesThing(BaseModel):
         uri - the uri of the created data object
     """
     uri:str = None 
-    securityLabel: str = None
+    securityLabel: Optional[str] = None
+    types:List[str] = []
+
+class IesElement(IesThing):
+    pass
+
+class IesEntity(IesElement):
+    pass
 
 class IesAssessment(IesThing):
     """
@@ -64,11 +72,10 @@ class IesClass(IesThing):
     superClasses:List[str] = []
     description:List[str] = []
 
-class IesState(IesThing):
+class IesState(IesElement):
     """
     A temporal stage of an element in IES - we use this here to identify the validity period of a building for the assessment being made
     """
-    stateType:str
     stateOf: str
     startDateTime: datetime = None
     endDateTime: datetime = None
@@ -88,6 +95,12 @@ class IesPerson(IesThing):
     surname:str
     givenName:str
 
+class Building(IesThing):
+    pass
+
+class IesEntityAndStates(BaseModel):
+    entity:IesEntity
+    states:List[IesState]
 
 #Checks to see if an iesThing has a URI - if not, it mints a new uri using the data_uri_stub
 #Also checks if a security label has been set
@@ -121,8 +134,8 @@ app.add_middleware(
 assessment_classes = {}
 building_state_classes = {}
 
-def run_sparql_query(query:str):
-    get_uri = "http://"+jenaURL+":"+jenaPort+"/"+ ontoDataset +"/query"
+def run_sparql_query(query:str,query_dataset=dataset):
+    get_uri = "http://"+jenaURL+":"+jenaPort+"/"+ query_dataset +"/query"
     response = requests.get(get_uri,params={'query':prefixes + query})
     return response.json()
 
@@ -158,7 +171,7 @@ def get_subtypes(super_class,exclude_super = None):
                 ?sub rdfs:subClassOf ?parent .
                 OPTIONAL {{ ?sub rdfs:comment ?comment}}
                 {filter_clause}
-            }}""")
+            }}""",query_dataset=ontoDataset)
 
     if results and results['results'] and results['results']['bindings']:
         for sub in results['results']['bindings']:
@@ -198,12 +211,12 @@ def get_assessments():
 @app.get("/buildings/states/classes", response_model=List[IesClass])
 def get_building_states():
     sub_classes, sub_list = get_subtypes(ndt+"BuildingState",exclude_super=ies+"Location")
-    global building_state_classes_classes
-    building_state_classes_classes = sub_classes
+    global building_state_classes
+    building_state_classes = sub_classes
     return sub_list
 
 @app.post("/people")
-def post_building_state(per: IesPerson):
+def post_person(per: IesPerson):
     mint_uri(per)
     query = f'''INSERT DATA 
             {{
@@ -219,6 +232,45 @@ def post_building_state(per: IesPerson):
             }}'''
     run_sparql_update(query=query,securityLabel=per.securityLabel)
     return per.uri
+
+@app.get("/buildings/{uprn}", response_model=IesEntityAndStates)
+def get_building_states(uprn:str):
+    query = f'''SELECT ?building ?buildingType ?state ?stateType WHERE 
+                {{
+                    ?building ies:isIdentifiedBy ?uprnID .
+                    ?building rdf:type ?buildingType .
+                    ?uprnID ies:representationValue "{uprn}" .
+                    OPTIONAL {{
+                        ?state ies:isStateOf ?building .
+                        ?state rdf:type ?stateType .
+                    }}
+                }}
+            '''
+    results = run_sparql_query(query)
+    building = {
+        "uri":"",
+        "types":[],
+    }
+    states = {}
+    if results and results['results'] and results['results']['bindings']:
+        for result in results['results']['bindings']:
+            building["uri"] = result["building"]["value"]
+            if result["buildingType"]["value"] not in building["types"]:
+                building["types"].append(result["buildingType"]["value"])
+            if result["state"]["value"]:
+                state = result["state"]["value"]
+                stateType = result["stateType"]["value"]
+                if state not in states:
+                    states[state] = {"uri":state,"types":[],"stateOf": building["uri"]}
+                if stateType not in states[state]["types"]:
+                    states[state]["types"].append(stateType)
+    out = {
+        "entity":building,
+        "states":[]
+    }
+    for state in states:
+        out["states"].append(states[state])
+    return out
 
 @app.post("/buildings/states")
 def post_building_state(bs: IesState):
