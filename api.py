@@ -203,7 +203,7 @@ def get_building_states():
     return sub_list
 
 @app.post("/people")
-def post_building_state(per: IesPerson):
+def post_building_state(per: IesPerson):    # noqa: F811
     mint_uri(per)
     query = f'''INSERT DATA 
             {{
@@ -221,7 +221,7 @@ def post_building_state(per: IesPerson):
     return per.uri
 
 @app.post("/buildings/states")
-def post_building_state(bs: IesState):
+def post_building_state(bs: IesState):    # noqa: F811
     if bs.stateType not in building_state_classes:
         get_building_states()
         if bs.stateType not in building_state_classes:
