@@ -78,3 +78,13 @@ ndt:BuidlingWithExcessiveCondensationOrDamp                 rdf:type            
 ndt:BuidlingWithExcessiveCondensationOrDamp                 rdfs:subClassOf     ndt:BuildingState .
 ndt:BuidlingWithSingleGlazedWindows                         rdf:type            rdfs:Class .
 ndt:BuidlingWithSingleGlazedWindows                         rdfs:subClassOf     ndt:BuildingState .
+
+# write-back assessment categories
+ndt:AssessToBeFalse             rdf:type              rdfs:Class .
+ndt:AssessToBeFalse             rdfs:subClassOf       ies:Assess .
+
+# write-back flagging reasons
+ndt:InterestedInInvestigating       rdf:type                    rdfs:Class .
+ndt:InterestedInInvestigating       rdfs:subClassOf             ies:Interested .
+ndt:InterestedInVisiting            rdf:type                    rdfs:Class .
+ndt:InterestedInVisiting            rdfs:subClassOf             ies:Interested .
