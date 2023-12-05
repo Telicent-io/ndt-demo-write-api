@@ -66,8 +66,8 @@ ndt:BuildingWithOldHeatingSystem                            rdf:type            
 ndt:BuildingWithOldHeatingSystem                            rdfs:subClassOf     ndt:BuildingState .
 ndt:BuildingWithHighEnergyBills                             rdf:type            rdfs:Class .
 ndt:BuildingWithHighEnergyBills                             rdfs:subClassOf     ndt:BuildingState .
-ndt:BuildingWithFrequentBoilerBreakdownsOrMaintenance      rdf:type            rdfs:Class .
-ndt:BuildingWithFrequentBoilerBreakdownsOrMaintenance      rdfs:subClassOf     ndt:BuildingState .
+ndt:BuildingWithFrequentBoilerBreakdownsOrMaintenance       rdf:type            rdfs:Class .
+ndt:BuildingWithFrequentBoilerBreakdownsOrMaintenance       rdfs:subClassOf     ndt:BuildingState .
 ndt:BuildingWithLackOfEnergyEfficentLighting                rdf:type            rdfs:Class .
 ndt:BuildingWithLackOfEnergyEfficentLighting                rdfs:subClassOf     ndt:BuildingState .
 ndt:BuildingWithPoorlySealedDuctwork                        rdf:type            rdfs:Class .
