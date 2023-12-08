@@ -5,6 +5,10 @@ The NDT Assessment Write-Back API was developed to provide NDT users a strictly 
 
 The data creation is centred around states of buildings and the IES AssessToBeTrue event.
 
+## Development
+
+The build workflow for this repository now relies on conventional commits (https://www.conventionalcommits.org/). To ensure new versions are versioned and built automatically please ensure your commit messages are in the expected form. EG: `feat: Added shiny new thing`, `fix: Resolved annoying bug` , `docs: Informed people how it is supposed to work`, etc.
+
 ## Running the server
 
 If you want to run this locally, you'll need to:
