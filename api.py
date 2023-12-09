@@ -20,19 +20,42 @@ data_uri_stub = os.getenv("DATA_URI",'http://telicent.io/data/') #This can be ov
 
 #The URIs used in the ontologies
 ies = "http://ies.data.gov.uk/ontology/ies4#"
-ndt="http://nationaldigitaltwin.gov.uk/ontology#"
+ndt_ont="http://nationaldigitaltwin.gov.uk/ontology#"
 
-prefixes = f"""
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX owl: <http://www.w3.org/2002/07/owl#>
-PREFIX ies: <{ies}>
-PREFIX tel: <http://telicent.io/ontology/>
-PREFIX data: <{data_uri_stub}>
-PREFIX ndt: <http://nationaldigitaltwin.gov.uk/ontology#>
-PREFIX gp: <https://www.geoplace.co.uk/addresses-streets/location-data/the-uprn#>
-"""
+def add_prefix(prefix,uri):
+    prefix_dict[prefix] = uri
+
+def format_prefixes():
+    prefixes = ''
+    for prefix in prefix_dict:
+        prefixes = prefixes + "PREFIX "+prefix+": <"+prefix_dict[prefix]+"> "
+    return prefixes
+
+prefix_dict = {}
+add_prefix("xsd","http://www.w3.org/2001/XMLSchema#")
+add_prefix("dc","http://purl.org/dc/elements/1.1/")
+add_prefix("rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+add_prefix("rdfs","http://www.w3.org/2000/01/rdf-schema#")
+add_prefix("owl","http://www.w3.org/2002/07/owl#")
+add_prefix("telicent","http://telicent.io/ontology/")
+add_prefix("ies",ies)
+add_prefix("data",data_uri_stub)
+add_prefix("ndt_ont",ndt_ont)
+add_prefix("ndt","http://nationaldigitaltwin.gov.uk/data#")
+add_prefix("gp","https://www.geoplace.co.uk/addresses-streets/location-data/the-uprn#")
+add_prefix("epc","http://gov.uk/government/organisations/department-for-levelling-up-housing-and-communities/ontology/epc#")
+
+
+def shorten(uri):
+    for prefix in prefix_dict:
+        stub = prefix_dict[prefix]
+        uri = uri.replace(stub,prefix+":")
+    return uri
+
+prefixes = format_prefixes()
+
+#Test person is created so we can assign assessments to someone. Once access to user info is available, this will be replaced with the logged in user. i.e. this is just a temporary fix for testing purposes.
+test_person_uri = data_uri_stub+"TestUser"
 
 class IesThing(BaseModel):
     """
@@ -44,6 +67,7 @@ class IesThing(BaseModel):
     types:List[str] = []
 
 class IesElement(IesThing):
+    inPeriod: date = None
     pass
 
 class IesEntity(IesElement):
@@ -56,13 +80,18 @@ class IesAssessment(IesThing):
     assessedItem: str 
     assessor: str
     assessmentType: str = None
-    inPeriod: date = None
 
 class IesAssessToBeTrue(IesAssessment):
     """
+    An assessment used to validate a statement or state
+    """
+    types: List[str] = [ies+"AssessToBeTrue"]
+
+class IesAssessToBeFalse(IesAssessment):
+    """
     An IES assessment used to validate a statement or state
     """
-    assessmentType: str = ies+"AssessToBeTrue"
+    types: List[str] = [ies+"AssessToBeFalse"]
 
 class IesClass(IesThing):
     """
@@ -151,12 +180,6 @@ def run_sparql_update(query:str,securityLabel=None):
     requests.post(post_uri,headers=headers,data=prefixes+query)
 
 
-def shorten(uri):
-    out = uri.replace("http://ies.data.gov.uk/ontology/ies4#","ies:")
-    out = out.replace("http://nationaldigitaltwin.gov.uk/ontology#","ndt:")
-    return out
-
-
 def get_subtypes(super_class,exclude_super = None):
     sub_classes = {}
     sub_list = []
@@ -210,10 +233,11 @@ def get_assessments():
 
 @app.get("/buildings/states/classes", response_model=List[IesClass])
 def get_building_states():
-    sub_classes, sub_list = get_subtypes(ndt+"BuildingState",exclude_super=ies+"Location")
+    sub_classes, sub_list = get_subtypes(ndt_ont+"BuildingState",exclude_super=ies+"Location")
     global building_state_classes
     building_state_classes = sub_classes
     return sub_list
+
 
 @app.post("/people")
 def post_person(per: IesPerson):
@@ -232,6 +256,83 @@ def post_person(per: IesPerson):
             }}'''
     run_sparql_update(query=query,securityLabel=per.securityLabel)
     return per.uri
+
+@app.get("/buildings")
+def get_buildings(minLat:float,maxLat:float,minLon:float,maxLon:float):
+    query = f"""
+        SELECT
+            ?building
+            ?uprn_id
+            ?building_toid_id
+            ?parent_building_toid_id
+            ?current_energy_rating
+            (GROUP_CONCAT(DISTINCT ?type; SEPARATOR=";") AS ?types)
+        WHERE {{
+            ?building ies:inLocation ?geopoint .
+
+            ?geopoint ies:isIdentifiedBy ?lat .
+            ?lat rdf:type ies:Latitude .
+            ?lat ies:representationValue ?lat_literal .
+            FILTER({str(minLat)} <= ?lat_literal && ?lat_literal <= {str(maxLat)}) .
+    
+            ?geopoint ies:isIdentifiedBy ?lon .
+            ?lon rdf:type ies:Longitude .
+            ?lon ies:representationValue ?lon_literal .
+            FILTER({str(minLon)} <= ?lon_literal && ?lon_literal <= {str(maxLon)}) .
+    
+            ?state ies:isStateOf ?building .
+            ?state a ?current_energy_rating .
+    
+            ?building ies:isIdentifiedBy ?uprn .
+            ?uprn ies:representationValue ?uprn_id .
+            ?uprn rdf:type gp:UniquePropertyReferenceNumber .
+        
+            ?building a ?type .
+    
+            OPTIONAL {{
+                ?building ies:isIdentifiedBy ?building_toid .
+                ?building_toid rdf:type ies:TOID .
+                ?building_toid ies:representationValue ?building_toid_id .
+            }}
+            OPTIONAL {{
+                ?building ies:isPartOf ?parent_building .
+                ?parent_building ies:isIdentifiedBy ?parent_building_toid .
+                ?parent_building_toid ies:representationValue ?parent_building_toid_id .
+                ?parent_building_toid rdf:type ies:TOID .
+            }}
+    
+        }}
+        GROUP BY
+            ?building
+            ?uprn_id
+            ?building_toid_id
+            ?parent_building_toid_id
+            ?current_energy_rating
+    """
+
+    out = {}
+    results = run_sparql_query(query)
+
+    if results and results['results'] and results['results']['bindings']:
+        for result in results['results']['bindings']:
+            building = shorten(result["building"]["value"])
+            if building in out:
+                building_obj = out[building]
+            else:
+                building_obj = {"uprn":result["uprn_id"]["value"],"currentEnergyRating":shorten(result["current_energy_rating"]["value"]),"types":[]}
+                out[building] = building_obj
+
+            if "building_toid_id" in result:
+                building_obj["buildingTOID"] = result["building_toid_id"]["value"]
+            if "parent_building_toid_id" in result:
+                building_obj["parentBuildingTOID"] = result["parent_building_toid_id"]["value"]
+            
+            type_list = result["types"]["value"].split(";")
+            for typ in type_list:
+                if shorten(typ) not in building_obj["types"]:
+                    building_obj["types"].append(shorten(typ))
+
+    return out
 
 @app.get("/buildings/{uprn}", response_model=IesEntityAndStates)
 def get_building_states(uprn:str):
@@ -344,14 +445,55 @@ def post_account(acc: IesAccount):
     run_sparql_update(query=query,securityLabel=acc.securityLabel)
     return acc.uri
 
-@app.post("/assessments/assess-to-be-true")
-def post_assess_to_be_true(ass: IesAssessToBeTrue):
+def assess(ass:IesAssessment):
     mint_uri(ass)
     if ass.inPeriod == None:
-        ass.inPeriod = datetime.today().strftime('%Y-%m-%d')
+        ass.inPeriod = datetime.datetime.now().isoformat()
+    if ass.assessor == None:
+        ass.assessor = test_person_uri
+
+    type_str = ""
+    for typ in ass.types:
+        type_str = type_str + f'<{ass.uri}> a <{typ}> . ' 
     query = f'''INSERT DATA 
             {{
-                <{ass.uri}> a <{ass.assessmentType}> .
+                {type_str}
+                <{ass.uri}> ies:assessed <{ass.assessedItem}> .
+                <{ass.uri}> ies:assessor <{ass.assessor}> .
+                <{ass.uri}> ies:inPeriod "{ass.inPeriod}"
+            }}'''
+    run_sparql_update(query=query,securityLabel=ass.securityLabel)
+
+    return ass.uri
+
+@app.post("/assessments/assess-to-be-true")
+def post_assess_to_be_true(ass:IesAssessToBeTrue):
+    mint_uri(ass)
+    if ass.inPeriod == None:
+        ass.inPeriod = datetime.datetime.now().isoformat()
+    if ass.assessor == None:
+        ass.assessor = test_person_uri
+    query = f'''INSERT DATA 
+            {{
+                <{ass.uri}> a <{ass.types[0]}> .
+                <{ass.uri}> ies:assessed <{ass.assessedItem}> .
+                <{ass.uri}> ies:assessor <{ass.assessor}> .
+                <{ass.uri}> ies:inPeriod "{ass.inPeriod}"
+            }}'''
+    run_sparql_update(query=query,securityLabel=ass.securityLabel)
+
+    return ass.uri
+ 
+@app.post("/assessments/assess-to-be-false")
+def post_assess_to_be_false(ass:IesAssessToBeFalse):
+    mint_uri(ass)
+    if ass.inPeriod == None:
+        ass.inPeriod = datetime.datetime.now().isoformat()
+    if ass.assessor == None:
+        ass.assessor = test_person_uri
+    query = f'''INSERT DATA 
+            {{
+                <{ass.uri}> a <{ass.types[0]}> .
                 <{ass.uri}> ies:assessed <{ass.assessedItem}> .
                 <{ass.uri}> ies:assessor <{ass.assessor}> .
                 <{ass.uri}> ies:inPeriod "{ass.inPeriod}"
@@ -423,6 +565,66 @@ def post_assessment(ass: IesAssessment, req:Request):
 
             return ass.uri
     raise HTTPException(status_code=400, detail="Could not create assessment")    
+
+#Create a temporary person for this demo...until we can do something else...
+person = IesPerson(uri=test_person_uri,givenName = "Test",surname = "User")
+post_person(person)
+
+query = """
+   PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    PREFIX ies: <http://ies.data.gov.uk/ontology/ies4#>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX geoplace: <https://www.geoplace.co.uk/addresses-streets/location-data/the-uprn#>
+    SELECT
+        ?uprn_id
+        ?building
+        ?building_toid_id
+        ?parent_building_toid_id
+        ?current_energy_rating
+        (GROUP_CONCAT(DISTINCT ?type; SEPARATOR="; ") AS ?types)
+    WHERE {
+        ?geopoint ies:isIdentifiedBy ?lat .
+        ?lat rdf:type ies:Latitude .
+        ?lat ies:representationValue ?lat_literal .
+        FILTER(50.6882 <= ?lat_literal && ?lat_literal <= 50.7098) .
+
+        ?geopoint ies:isIdentifiedBy ?lon .
+        ?lon rdf:type ies:Longitude .
+        ?lon ies:representationValue ?lon_literal .
+        FILTER(-1.3276 <= ?lon_literal && ?lon_literal <= -1.2561) .
+       
+        ?building ies:inLocation ?geopoint .
+
+        ?state ies:isStateOf ?building .
+        ?state a ?current_energy_rating .
+
+        ?building ies:isIdentifiedBy ?uprn .
+        ?uprn ies:representationValue ?uprn_id .
+        ?uprn rdf:type geoplace:UniquePropertyReferenceNumber .
+       
+        ?building a ?type .
+
+        OPTIONAL {
+            ?building ies:isIdentifiedBy ?building_toid .
+            ?building_toid rdf:type ies:TOID .
+            ?building_toid ies:representationValue ?building_toid_id .
+        }
+        OPTIONAL {
+            ?building ies:isPartOf ?parent_building .
+            ?parent_building ies:isIdentifiedBy ?parent_building_toid .
+            ?parent_building_toid ies:representationValue ?parent_building_toid_id .
+            ?parent_building_toid rdf:type ies:TOID .
+        }
+
+    }
+    GROUP BY
+        ?uprn_id
+        ?building_toid_id
+        ?parent_building_toid_id
+        ?current_energy_rating
+
+"""
+
 
 #if __name__ == "__main__":
 #    uvicorn.run(app, host="0.0.0.0", port=int(5021),reload=app)

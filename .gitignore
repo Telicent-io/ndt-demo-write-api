@@ -2,9 +2,12 @@
 __pycache__/
 *.py[cod]
 *$py.class
+address-epcs
+uprn-latlon-toids
 
 # C extensions
 *.so
+*.zip
 
 # Distribution / packaging
 .Python
