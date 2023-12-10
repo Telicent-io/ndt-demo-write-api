@@ -5,10 +5,6 @@ The NDT Assessment Write-Back API was developed to provide NDT users a strictly 
 
 The data creation is centred around states of buildings and the IES AssessToBeTrue event.
 
-## IMPORTANT NOTE
-
-The current version (this one) of the API uses a default person object for all flagging and invalidation operations. The production version will use a person object that corresponds to the current user. 
-
 ## Running the server
 
 If you want to run this locally, you'll need to:
@@ -21,53 +17,9 @@ If you want to run this locally, you'll need to:
 * pip install all the modules listed in requirements.txt
 * run the api.py file or the run-api.sh script (Python 3.9 or later) 
 
-## Basic Usage
+## Using the API
 
-To get all the buildings within a given GeoHash, call `/buildings` and pass in a geohash parameter (at least 5 digits) and it will return all buildings within that geohash. The returned payload will also include any flags against the property. A typical return payload would be:
-
-    [
-        {
-            "uri": "data:building_100060748037",
-            "securityLabel": null,
-            "types": [
-                "ndt_ont:House",
-                "ndt_ont:SemiDetached"
-            ],
-            "uprn": "100060748037",
-            "currentEnergyRating": "D",
-            "parentBuildingTOID": null,
-            "buildingTOID": "osgb1000013026999",
-            "parentBuilding": null,
-            "flags": {
-                "data:4e1d2127-b1ff-4446-8e1a-e50fe5dd3d61": {
-                    "flagType": "data:InterestedInInvestigating",
-                    "flaggingPerson": "http://nationaldigitaltwin.gov.uk/data#TestUser",
-                    "date": "http://iso.org/iso8601#2023-12-10T14:27:56.176601"
-                },
-                "data:c7163507-b195-48ad-8010-0d995efd1662": {
-                    "flagType": "data:InterestedInVisiting",
-                    "flaggingPerson": "http://nationaldigitaltwin.gov.uk/data#TestUser",
-                    "date": "http://iso.org/iso8601#2023-12-10T14:28:17.751216",
-                    "invalidated": "http://iso.org/iso8601#2023-12-10T16:33:23.247985",
-                    "invalidatedBy": "http://nationaldigitaltwin.gov.uk/data#TestUser"
-                }
-            }
-        }
-    ]
-
-Note that the API has shortened some of the URIs to keep the payload size down. You should use fully formed URIs when passing data in.
-
-To flag a building for investigation, call `/flag-to-investigate` and pass in the full URI of the building, the flag URI will be returned
-
-To flag a building for visiting, call `/flag-to-visit` and pass in the full URI of the building, the flag URI will be returned
-
-To invalidate a flag, call `/invalidate-flag`, passing in the URI of the flag to be invalidated 
-
-These can be tested in Insomnia, and a JSON insomnia config is provided in this repo. 
-
-## Additional Calls
-
-The /buildings/states/classes endpoint. That will return a list of class objects - e.g. 
+The first thing to do is to request which building state classes are available - call the /buildings/states/classes endpoint. That will return a list of class objects - e.g. 
 
     [
         {

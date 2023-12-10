@@ -9,6 +9,7 @@ import uvicorn
 import os
 import requests
 import uuid
+import pygeohash as pgh
 
 #If you're running this yourself, and the Jena instance you're using is not local, you can used environment variables to override
 jenaURL = os.getenv("JENA_URL", "localhost")
@@ -16,7 +17,7 @@ jenaPort = os.getenv("JENA_PORT", "3030")
 ontoDataset = os.getenv("ONTO_DATASET", "ontology")
 dataset = os.getenv("KNOWLEDGE_DATASET", "knowledge")
 default_security_label = os.getenv("DEFAULT_SECURITY_LABEL",'')
-data_uri_stub = os.getenv("DATA_URI",'http://telicent.io/data/') #This can be overridden in use
+data_uri_stub = os.getenv("DATA_URI",'http://nationaldigitaltwin.gov.uk/data#') #This can be overridden in use
 
 #The URIs used in the ontologies
 ies = "http://ies.data.gov.uk/ontology/ies4#"
@@ -50,6 +51,12 @@ def shorten(uri):
     for prefix in prefix_dict:
         stub = prefix_dict[prefix]
         uri = uri.replace(stub,prefix+":")
+    return uri
+
+def lengthen(uri):
+    for prefix in prefix_dict:
+        stub = prefix_dict[prefix]
+        uri = uri.replace(prefix+":",stub)
     return uri
 
 prefixes = format_prefixes()
@@ -125,7 +132,14 @@ class IesPerson(IesThing):
     givenName:str
 
 class Building(IesThing):
-    pass
+    uprn: str = None
+    currentEnergyRating: str = None
+    types:List[str] = []
+    parentBuildingTOID:str = None
+    buildingTOID:str = None
+    parentBuilding:str = None
+    flags:Dict = {}
+
 
 class IesEntityAndStates(BaseModel):
     entity:IesEntity
@@ -158,6 +172,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 #Local dictionaries that are used to check that certain classes exist before posting references to them
 assessment_classes = {}
@@ -224,22 +239,22 @@ def get_subtypes(super_class,exclude_super = None):
 def read_root():
     return "NDT-DEMO"
 
-@app.get("/assessment-classes", response_model=List[IesClass])
+@app.get("/assessment-classes", response_model=List[IesClass],description="returns all the subclasses of ies:Assessment that are in the ontology")
 def get_assessments():
     sub_classes, sub_list = get_subtypes(ies+"Assessment")
     global assessment_classes
     assessment_classes = sub_classes
     return sub_list
 
-@app.get("/buildings/states/classes", response_model=List[IesClass])
-def get_building_states():
+@app.get("/buildings/states/classes", response_model=List[IesClass],description="returns all the subclasses of BuildingState that are in the ontology")
+def get_building_state_classes():
     sub_classes, sub_list = get_subtypes(ndt_ont+"BuildingState",exclude_super=ies+"Location")
     global building_state_classes
     building_state_classes = sub_classes
     return sub_list
 
 
-@app.post("/people")
+@app.post("/people",description="Creates a new Person")
 def post_person(per: IesPerson):
     mint_uri(per)
     query = f'''INSERT DATA 
@@ -257,8 +272,13 @@ def post_person(per: IesPerson):
     run_sparql_update(query=query,securityLabel=per.securityLabel)
     return per.uri
 
-@app.get("/buildings")
-def get_buildings(minLat:float,maxLat:float,minLon:float,maxLon:float):
+@app.get("/buildings",response_model=List[Building],description="Gets all the buildings inside a geohash (min 5 digits) along with their types, TOIDs, UPRNs, and current energy ratings")
+def get_buildings_in_geohash(geohash:str):
+    if len(geohash) < 5:
+        raise HTTPException(422,detail="Lat Lon range too wide, please provide at least five digits")  
+    gh = "http://geohash.org/"+geohash
+   
+
     query = f"""
         SELECT
             ?building
@@ -266,28 +286,40 @@ def get_buildings(minLat:float,maxLat:float,minLon:float,maxLon:float):
             ?building_toid_id
             ?parent_building_toid_id
             ?current_energy_rating
-            (GROUP_CONCAT(DISTINCT ?type; SEPARATOR=";") AS ?types)
+            ?parent_building
+            ?type
+            ?flag
+            ?flag_type
+            ?flag_person
+            ?flag_date
+            ?flag_assessment
+            ?flag_ass_date
+            ?flag_assessor
         WHERE {{
             ?building ies:inLocation ?geopoint .
+            BIND(str(?geopoint) as ?gh) .
+            FILTER (STRSTARTS(?gh,"{gh}") )
+            ?building a ?type .
 
-            ?geopoint ies:isIdentifiedBy ?lat .
-            ?lat rdf:type ies:Latitude .
-            ?lat ies:representationValue ?lat_literal .
-            FILTER({str(minLat)} <= ?lat_literal && ?lat_literal <= {str(maxLat)}) .
-    
-            ?geopoint ies:isIdentifiedBy ?lon .
-            ?lon rdf:type ies:Longitude .
-            ?lon ies:representationValue ?lon_literal .
-            FILTER({str(minLon)} <= ?lon_literal && ?lon_literal <= {str(maxLon)}) .
-    
             ?state ies:isStateOf ?building .
-            ?state a ?current_energy_rating .
+            ?state a ?energy_rating .
+            BIND(REPLACE(str(?energy_rating),"http://gov.uk/government/organisations/department-for-levelling-up-housing-and-communities/ontology/epc#BuildingWithEnergyRatingOf","","i") as ?current_energy_rating)
     
             ?building ies:isIdentifiedBy ?uprn .
             ?uprn ies:representationValue ?uprn_id .
             ?uprn rdf:type gp:UniquePropertyReferenceNumber .
-        
-            ?building a ?type .
+    
+            OPTIONAL {{
+                ?flag ies:interestedIn ?building .
+                ?flag ies:isStateOf ?flag_person .
+                ?flag a ?flag_type . 
+                ?flag ies:inPeriod ?flag_date .
+                OPTIONAL {{
+                    ?flag_assessment ies:assessed ?flag .
+                    ?flag_assessment ies:inPeriod ?flag_ass_date .
+                    ?flag_assessment ies:assessor ?flag_assessor .
+                }}
+            }}
     
             OPTIONAL {{
                 ?building ies:isIdentifiedBy ?building_toid .
@@ -302,40 +334,62 @@ def get_buildings(minLat:float,maxLat:float,minLon:float,maxLon:float):
             }}
     
         }}
-        GROUP BY
-            ?building
-            ?uprn_id
-            ?building_toid_id
-            ?parent_building_toid_id
-            ?current_energy_rating
     """
 
     out = {}
+    out_array = []
     results = run_sparql_query(query)
 
     if results and results['results'] and results['results']['bindings']:
         for result in results['results']['bindings']:
             building = shorten(result["building"]["value"])
+            typ = shorten(result["type"]["value"])
             if building in out:
                 building_obj = out[building]
+                if typ not in building_obj["types"]:
+                    building_obj["types"].append(typ)
             else:
-                building_obj = {"uprn":result["uprn_id"]["value"],"currentEnergyRating":shorten(result["current_energy_rating"]["value"]),"types":[]}
+                energy_rating = result["current_energy_rating"]["value"]
+                building_obj = {"uri":building,"uprn":result["uprn_id"]["value"],"currentEnergyRating":energy_rating,"types":[typ],"flags":{},"invalidatedFlags":[]}
                 out[building] = building_obj
+                out_array.append(building_obj)
+
+            if "flag" in result:
+                flag = shorten(result["flag"]["value"])
+                if not flag in building_obj["flags"]:
+                    flag_obj = {"flagType":shorten(result["flag_type"]["value"]),"flaggedBy":result["flag_person"]["value"],"date":result["flag_date"]["value"]}
+                    building_obj["flags"][flag] = flag_obj
+                else:
+                    flag_obj = building_obj["flags"][flag]
+                if "flag_assessment" in result:
+                    flag_obj["invalidated"] = result["flag_ass_date"]["value"]
+                    flag_obj["invalidatedBy"] = result["flag_assessor"]["value"]
 
             if "building_toid_id" in result:
                 building_obj["buildingTOID"] = result["building_toid_id"]["value"]
-            if "parent_building_toid_id" in result:
+            elif "parent_building_toid_id" in result:
                 building_obj["parentBuildingTOID"] = result["parent_building_toid_id"]["value"]
             
-            type_list = result["types"]["value"].split(";")
-            for typ in type_list:
-                if shorten(typ) not in building_obj["types"]:
-                    building_obj["types"].append(shorten(typ))
+    return out_array
 
-    return out
+@app.post("/invalidate-flag",description="Post to this endpoint to invalidate an existing flag.")
+def invalidate_flag(flagUri:str,assessmentTypeOverride:str=prefix_dict["ndt"]+"AssessToBeFalse",securityLabel = default_security_label):
+    assessor = test_person_uri
+    assessment_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
+    assessment = data_uri_stub+str(uuid.uuid4())
+    query = f"""
+        INSERT DATA {{
+            <{assessment}> a <{assessmentTypeOverride}> .
+            <{assessment}> ies:assessor <{assessor}> .
+            <{assessment}> ies:assessed <{lengthen(flagUri)}> .
+            <{assessment}> ies:inPeriod <{assessment_time}> .
+        }}
+    """
+    run_sparql_update(query=query,securityLabel=securityLabel)
+    return assessment
 
-@app.get("/buildings/{uprn}", response_model=IesEntityAndStates)
-def get_building_states(uprn:str):
+@app.get("/buildings/{uprn}", response_model=IesEntityAndStates,description="returns the building that corresponds to the provided UPRN")
+def get_building_by_uprn(uprn:str):
     query = f'''SELECT ?building ?buildingType ?state ?stateType WHERE 
                 {{
                     ?building ies:isIdentifiedBy ?uprnID .
@@ -373,7 +427,43 @@ def get_building_states(uprn:str):
         out["states"].append(states[state])
     return out
 
-@app.post("/buildings/states")
+@app.post("/flag-to-visit",description="Add a flag to an Entity instance as being worth visiting - URI of Entity must be provided")
+def post_flag_visit(visited:IesEntity):
+    if not visited or not visited.uri:
+        raise HTTPException(422,"URI of flagged entity must be provided")
+    flagger = test_person_uri
+    flag_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
+    flag_state = data_uri_stub+str(uuid.uuid4())
+    query = f"""
+        INSERT DATA {{
+            <{flag_state}> ies:interestedIn <{visited.uri}> .
+            <{flag_state}> ies:isStateOf <{flagger}> .
+            <{flag_state}> ies:inPeriod <{flag_time}> .
+            <{flag_state}> a ndt:InterestedInVisiting .
+        }}
+    """
+    run_sparql_update(query=query,securityLabel=visited.securityLabel)
+    return flag_state
+
+@app.post("/flag-to-investigate",description="Add a flag to an Entity instance as being worth investigating- URI of Entity must be provided")
+def post_flag_visit(visited:IesEntity):
+    if not visited or not visited.uri:
+        raise HTTPException(422,"URI of flagged entity must be provided")
+    flagger = test_person_uri
+    flag_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
+    flag_state = data_uri_stub+str(uuid.uuid4())
+    query = f"""
+        INSERT DATA {{
+            <{flag_state}> ies:interestedIn <{visited.uri}> .
+            <{flag_state}> ies:isStateOf <{flagger}> .
+            <{flag_state}> ies:inPeriod <{flag_time}> .
+            <{flag_state}> a ndt:InterestedInInvestigating .
+        }}
+    """
+    run_sparql_update(query=query,securityLabel=visited.securityLabel)
+    return flag_state
+
+@app.post("/buildings/states",description="Add a new state to a building")
 def post_building_state(bs: IesState):
     if bs.stateType not in building_state_classes:
         get_building_states()
@@ -411,7 +501,7 @@ def post_building_state(bs: IesState):
     run_sparql_update(query=query,securityLabel=bs.securityLabel)
     return bs.uri
 
-@app.post("/accounts")
+#@app.post("/accounts")
 def post_account(acc: IesAccount):
     if acc.uri == None:
         acc.uri = data_uri_stub+"Account-"+acc.id
@@ -466,7 +556,7 @@ def assess(ass:IesAssessment):
 
     return ass.uri
 
-@app.post("/assessments/assess-to-be-true")
+#@app.post("/assessments/assess-to-be-true")
 def post_assess_to_be_true(ass:IesAssessToBeTrue):
     mint_uri(ass)
     if ass.inPeriod == None:
@@ -484,7 +574,7 @@ def post_assess_to_be_true(ass:IesAssessToBeTrue):
 
     return ass.uri
  
-@app.post("/assessments/assess-to-be-false")
+#@app.post("/assessments/assess-to-be-false")
 def post_assess_to_be_false(ass:IesAssessToBeFalse):
     mint_uri(ass)
     if ass.inPeriod == None:
@@ -524,7 +614,7 @@ def post_default_security_label(label:str):
 def get_default_security_label():
     return default_security_label
 
-@app.post("/assessments")
+#@app.post("/assessments")
 def post_assessment(ass: IesAssessment, req:Request):
     mint_uri(ass)
     state_uri = ""
@@ -570,60 +660,6 @@ def post_assessment(ass: IesAssessment, req:Request):
 person = IesPerson(uri=test_person_uri,givenName = "Test",surname = "User")
 post_person(person)
 
-query = """
-   PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-    PREFIX ies: <http://ies.data.gov.uk/ontology/ies4#>
-    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-    PREFIX geoplace: <https://www.geoplace.co.uk/addresses-streets/location-data/the-uprn#>
-    SELECT
-        ?uprn_id
-        ?building
-        ?building_toid_id
-        ?parent_building_toid_id
-        ?current_energy_rating
-        (GROUP_CONCAT(DISTINCT ?type; SEPARATOR="; ") AS ?types)
-    WHERE {
-        ?geopoint ies:isIdentifiedBy ?lat .
-        ?lat rdf:type ies:Latitude .
-        ?lat ies:representationValue ?lat_literal .
-        FILTER(50.6882 <= ?lat_literal && ?lat_literal <= 50.7098) .
-
-        ?geopoint ies:isIdentifiedBy ?lon .
-        ?lon rdf:type ies:Longitude .
-        ?lon ies:representationValue ?lon_literal .
-        FILTER(-1.3276 <= ?lon_literal && ?lon_literal <= -1.2561) .
-       
-        ?building ies:inLocation ?geopoint .
-
-        ?state ies:isStateOf ?building .
-        ?state a ?current_energy_rating .
-
-        ?building ies:isIdentifiedBy ?uprn .
-        ?uprn ies:representationValue ?uprn_id .
-        ?uprn rdf:type geoplace:UniquePropertyReferenceNumber .
-       
-        ?building a ?type .
-
-        OPTIONAL {
-            ?building ies:isIdentifiedBy ?building_toid .
-            ?building_toid rdf:type ies:TOID .
-            ?building_toid ies:representationValue ?building_toid_id .
-        }
-        OPTIONAL {
-            ?building ies:isPartOf ?parent_building .
-            ?parent_building ies:isIdentifiedBy ?parent_building_toid .
-            ?parent_building_toid ies:representationValue ?parent_building_toid_id .
-            ?parent_building_toid rdf:type ies:TOID .
-        }
-
-    }
-    GROUP BY
-        ?uprn_id
-        ?building_toid_id
-        ?parent_building_toid_id
-        ?current_energy_rating
-
-"""
 
 
 #if __name__ == "__main__":
