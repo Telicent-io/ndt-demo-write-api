@@ -11,8 +11,7 @@ import requests
 import uuid
 import pygeohash as pgh
 
-from rdflib.plugins.sparql.results.jsonresults import JSONResultSerializer
-from rdflib import Graph, URIRef, Literal, XSD, Namespace
+
 
 #If you're running this yourself, and the Jena instance you're using is not local, you can used environment variables to override
 jenaURL = os.getenv("JENA_URL", "localhost")
@@ -21,13 +20,27 @@ ontoDataset = os.getenv("ONTO_DATASET", "ontology")
 dataset = os.getenv("KNOWLEDGE_DATASET", "knowledge")
 default_security_label = os.getenv("DEFAULT_SECURITY_LABEL",'')
 data_uri_stub = os.getenv("DATA_URI",'http://nationaldigitaltwin.gov.uk/data#') #This can be overridden in use
-update_mode = os.getenv("UPDATE_MODE","KAFKA")
+update_mode = os.getenv("UPDATE_MODE","SCG")
+broker = os.getenv("BOOTSTRAP_SERVERS","localhost:9092")
+fpTopic = os.getenv("IES_TOPIC","knowledge")
+
+
+if update_mode == "KAFKA":
+    from maplib.sinks import KafkaSink
+    from maplib.sinks.listSink import ListSink
+    from maplib import Adapter, Record,RecordUtils
+    from rdflib import Graph, plugin, URIRef, BNode, Literal
+    from rdflib.namespace import DC, DCAT, DCTERMS, OWL, RDF, RDFS, XMLNS, XSD
+    from rdflib.serializer import Serializer
+    knowledgeSink = KafkaSink(topic=fpTopic, broker=broker, debug=True)
+    knowledgeAdapter = Adapter(knowledgeSink, name="IoW Write-Back API",source_name="local data")
 
 #The URIs used in the ontologies
 ies = "http://ies.data.gov.uk/ontology/ies4#"
 ndt_ont="http://nationaldigitaltwin.gov.uk/ontology#"
 
-
+def get_headers(security_labels):
+    return RecordUtils.to_headers({"Security-Label":security_labels, "Content-Type": "application/n-triples"})
 
 def add_prefix(prefix,uri):
     prefix_dict[prefix] = uri
@@ -190,15 +203,24 @@ def run_sparql_query(query:str,query_dataset=dataset):
     return response.json()
 
 def run_sparql_update(query:str,securityLabel=None):
-    if securityLabel == None:
-        securityLabel = default_security_label
-    post_uri =  "http://"+jenaURL+":"+jenaPort+"/"+ dataset +"/update"
-    headers = {
-        'Accept': '*/*',
-        'Security-Label':securityLabel,
-        'Content-Type': 'application/sparql-update'
-    }
-    requests.post(post_uri,headers=headers,data=prefixes+query)
+    if update_mode == "SCG":
+        if securityLabel == None:
+            securityLabel = default_security_label
+        post_uri =  "http://"+jenaURL+":"+jenaPort+"/"+ dataset +"/update"
+        headers = {
+            'Accept': '*/*',
+            'Security-Label':securityLabel,
+            'Content-Type': 'application/sparql-update'
+        }
+        requests.post(post_uri,headers=headers,data=prefixes+query)
+    elif update_mode == "KAFKA":
+        g = Graph()
+        g.update(query)
+        outData = g.serialize(format='nt')
+        record = Record(get_headers(securityLabel),None,outData )
+        knowledgeAdapter.send(record)
+    else:
+        raise Exception("unknown update mode: "+update_mode)
 
 
 def get_subtypes(super_class,exclude_super = None):
