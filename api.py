@@ -214,15 +214,15 @@ def get_subtypes(super_class,exclude_super = None):
     if results and results['results'] and results['results']['bindings']:
         for sub in results['results']['bindings']:
             sub_uri=sub['sub']['value']
-            if sub['sub']['value'] not in assessment_classes:
+            if sub_uri not in sub_classes:
                 #create a new empty(ish) item
                 my_obj = {"uri":sub_uri,"shortName":shorten(sub_uri),"superClasses":[],"description":[]}
                 sub_classes[sub_uri]= my_obj
             else:
                 my_obj = sub_classes[sub_uri]
             #If there are any comments, append them
-            if "comment" in sub and sub['comment']['value'] not in assessment_classes[sub['sub']['value']]["description"]:
-                assessment_classes[sub['sub']['value']]["description"].append(sub['comment']['value'])
+            if "comment" in sub and sub['comment']['value'] not in sub_classes[sub['sub']['value']]["description"]:
+                sub_classes[sub_uri]["description"].append(sub['comment']['value'])
             #There may be more than one parent, so append them as we find them
             if sub['parent']['value'] not in my_obj["superClasses"]:
                     my_obj["superClasses"].append(sub['parent']['value'])
@@ -372,10 +372,14 @@ def get_buildings_in_geohash(geohash:str):
     return out_array
 
 @app.post("/invalidate-flag",description="Post to this endpoint to invalidate an existing flag.")
-def invalidate_flag(request:Request,flagUri:str,assessmentTypeOverride:str=prefix_dict["ndt"]+"AssessToBeFalse",securityLabel = default_security_label):
+def invalidate_flag(request:Request,flagUri:str,assessmentTypeOverride:str=prefix_dict["ndt_ont"]+"AssessToBeFalse",securityLabel = default_security_label):
     assessor = test_person_uri
     assessment_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
     assessment = data_uri_stub+str(uuid.uuid4())
+    (ass_subclasses,ass_list) = get_subtypes(ies+"Assess")
+    print(ass_subclasses)
+    if assessmentTypeOverride not in ass_subclasses:
+        raise HTTPException(422,"assessmentTypeOverride must be a subclass of ies:Assess")
     query = f"""
         INSERT DATA {{
             <{assessment}> a <{assessmentTypeOverride}> .
