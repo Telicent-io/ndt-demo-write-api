@@ -29,7 +29,7 @@ def add_prefix(prefix,uri):
 def format_prefixes():
     prefixes = ''
     for prefix in prefix_dict:
-        prefixes = prefixes + "PREFIX "+prefix+": <"+prefix_dict[prefix]+"> "
+        prefixes = prefixes + "PREFIX "+prefix+": <"+prefix_dict[prefix]+">\n"
     return prefixes
 
 prefix_dict = {}
@@ -278,7 +278,6 @@ def get_buildings_in_geohash(geohash:str):
         raise HTTPException(422,detail="Lat Lon range too wide, please provide at least five digits")  
     gh = "http://geohash.org/"+geohash
    
-
     query = f"""
         SELECT
             ?building
@@ -373,7 +372,7 @@ def get_buildings_in_geohash(geohash:str):
     return out_array
 
 @app.post("/invalidate-flag",description="Post to this endpoint to invalidate an existing flag.")
-def invalidate_flag(flagUri:str,assessmentTypeOverride:str=prefix_dict["ndt"]+"AssessToBeFalse",securityLabel = default_security_label):
+def invalidate_flag(request:Request,flagUri:str,assessmentTypeOverride:str=prefix_dict["ndt"]+"AssessToBeFalse",securityLabel = default_security_label):
     assessor = test_person_uri
     assessment_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
     assessment = data_uri_stub+str(uuid.uuid4())
@@ -428,7 +427,7 @@ def get_building_by_uprn(uprn:str):
     return out
 
 @app.post("/flag-to-visit",description="Add a flag to an Entity instance as being worth visiting - URI of Entity must be provided")
-def post_flag_visit(visited:IesEntity):
+def post_flag_visit(request:Request,visited:IesEntity):
     if not visited or not visited.uri:
         raise HTTPException(422,"URI of flagged entity must be provided")
     flagger = test_person_uri
@@ -446,7 +445,7 @@ def post_flag_visit(visited:IesEntity):
     return flag_state
 
 @app.post("/flag-to-investigate",description="Add a flag to an Entity instance as being worth investigating- URI of Entity must be provided")
-def post_flag_visit(visited:IesEntity):
+def post_flag_visit(request:Request,visited:IesEntity):
     if not visited or not visited.uri:
         raise HTTPException(422,"URI of flagged entity must be provided")
     flagger = test_person_uri
