@@ -11,31 +11,52 @@ ndt:Building            rdf:type            rdfs:Class .
 ndt:Building            rdfs:subClassOf     ies:Location .
 ndt:Building            rdfs:subClassOf     ndt:BuildingState .
 
+# powertypes
+ndt:ClassOfLocation  rdf:type            rdfs:Class .
+ndt:ClassOfLocation  rdfs:subClassOf     ies:ClassOfEntity .
+ndt:ClassOfBuilding  rdf:type            rdfs:Class .
+ndt:ClassOfBuilding  rdfs:subClassOf     ndt:ClassOfLocation .
+ndt:PropertyClass    rdf:type            rdfs:Class .
+ndt:PropertyClass    rdfs:subClassOf     ndt:ClassOfBuilding .
+ndt:BuildFormClass   rdf:type            rdfs:Class .
+ndt:BuildFormClass   rdfs:subClassOf     ndt:ClassOfBuilding .
+
 # property types
 ndt:House           rdf:type            rdfs:Class .
 ndt:House           rdfs:subClassOf     ndt:Building .
+ndt:House           ies:powertype       ndt:PropertyClass .
 ndt:Flat            rdf:type            rdfs:Class .
 ndt:Flat            rdfs:subClassOf     ndt:Building .
+ndt:Flat            ies:powertype       ndt:PropertyClass .
 ndt:Bungalow        rdf:type            rdfs:Class .
 ndt:Bungalow        rdfs:subClassOf     ndt:Building .
+ndt:Bungalow        ies:powertype       ndt:PropertyClass .
 ndt:Maisonette      rdf:type            rdfs:Class .
 ndt:Maisonette      rdfs:subClassOf     ndt:Building .
+ndt:Maisonette      ies:powertype       ndt:PropertyClass .
 ndt:ParkHome        rdf:type            rdfs:Class .
 ndt:ParkHome        rdfs:subClassOf     ndt:Building .
+ndt:ParkHome        ies:powertype       ndt:PropertyClass .
 
 # build form types
 ndt:SemiDetached            rdf:type            rdfs:Class .
 ndt:SemiDetached            rdfs:subClassOf     ndt:Building .
+ndt:SemiDetached            ies:powertype       ndt:BuildFormClass .
 ndt:EnclosedEndTerrace      rdf:type            rdfs:Class .
 ndt:EnclosedEndTerrace      rdfs:subClassOf     ndt:Building .
+ndt:EnclosedEndTerrace      ies:powertype       ndt:BuildFormClass .
 ndt:Detached                rdf:type            rdfs:Class .
 ndt:Detached                rdfs:subClassOf     ndt:Building .
+ndt:Detached                ies:powertype       ndt:BuildFormClass .
 ndt:MidTerrace              rdf:type            rdfs:Class .
 ndt:MidTerrace              rdfs:subClassOf     ndt:Building .
+ndt:MidTerrace              ies:powertype       ndt:BuildFormClass .
 ndt:EnclosedEndTerrace      rdf:type            rdfs:Class .
 ndt:EnclosedEndTerrace      rdfs:subClassOf     ndt:Building .
+ndt:EnclosedEndTerrace      ies:powertype       ndt:BuildFormClass .
 ndt:EnclosedMidTerrace      rdf:type            rdfs:Class .
 ndt:EnclosedMidTerrace      rdfs:subClassOf     ndt:Building .
+ndt:EnclosedMidTerrace      ies:powertype       ndt:BuildFormClass .
 
 
 geoplace:UniquePropertyReferenceNumber      rdf:type             rdfs:Class .
