@@ -8,27 +8,41 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
 import requests
+from requests import exceptions
 import uuid
 import pygeohash as pgh
-
-from rdflib.plugins.sparql.results.jsonresults import JSONResultSerializer
-from rdflib import Graph, URIRef, Literal, XSD, Namespace
+from access import AccessClient
+import configparser
+# from rdflib.plugins.sparql.results.jsonresults import JSONResultSerializer
+# from rdflib import Graph, URIRef, Literal, XSD, Namespace
 
 #If you're running this yourself, and the Jena instance you're using is not local, you can used environment variables to override
 jenaURL = os.getenv("JENA_URL", "localhost")
 jenaPort = os.getenv("JENA_PORT", "3030")
+jenaProtocol = os.getenv("JENA_PROTOCOL", "http")
 ontoDataset = os.getenv("ONTO_DATASET", "ontology")
 dataset = os.getenv("KNOWLEDGE_DATASET", "knowledge")
 default_security_label = os.getenv("DEFAULT_SECURITY_LABEL",'')
 data_uri_stub = os.getenv("DATA_URI",'http://nationaldigitaltwin.gov.uk/data#') #This can be overridden in use
 update_mode = os.getenv("UPDATE_MODE","KAFKA")
+access_protocol = os.getenv("ACCESS_PROTOCOL", "http")
+access_host = os.getenv("ACCESS_URL", "localhost")
+access_port = os.getenv("ACCESS_PORT", "8091")
+dev_mode = os.getenv("DEV", "False")
+port = os.getenv("PORT", "5021")
 
+config = configparser.ConfigParser()
+config.read('setup.cfg')
+if dev_mode.lower() == "true":
+    dev_mode = True
+else: 
+    dev_mode = False
 #The URIs used in the ontologies
 ies = "http://ies.data.gov.uk/ontology/ies4#"
 ndt_ont="http://nationaldigitaltwin.gov.uk/ontology#"
 
-
-
+access_url = f"{access_protocol}://{access_host}:{access_port}"
+jena_url = f"{jenaProtocol}://{jenaURL}:{jenaPort}"
 def add_prefix(prefix,uri):
     prefix_dict[prefix] = uri
 
@@ -38,6 +52,7 @@ def format_prefixes():
         prefixes = prefixes + "PREFIX "+prefix+": <"+prefix_dict[prefix]+">\n"
     return prefixes
 
+access_client = AccessClient(access_url, dev_mode)
 prefix_dict = {}
 add_prefix("xsd","http://www.w3.org/2001/XMLSchema#")
 add_prefix("dc","http://purl.org/dc/elements/1.1/")
@@ -151,6 +166,14 @@ class IesEntityAndStates(BaseModel):
     entity:IesEntity
     states:List[IesState]
 
+class AccessUser(BaseModel):
+    username: str 
+    user_id: str
+    active: bool = None
+    email: str = None
+    attributes: dict[str,str]
+    groups: List[str] 
+
 #Checks to see if an iesThing has a URI - if not, it mints a new uri using the data_uri_stub
 #Also checks if a security label has been set
 def mint_uri(item:IesThing):
@@ -185,14 +208,16 @@ assessment_classes = {}
 building_state_classes = {}
 
 def run_sparql_query(query:str,query_dataset=dataset):
-    get_uri = "http://"+jenaURL+":"+jenaPort+"/"+ query_dataset +"/query"
+    global jena_url
+    get_uri = jena_url+"/"+ query_dataset +"/query"
     response = requests.get(get_uri,params={'query':prefixes + query})
     return response.json()
 
 def run_sparql_update(query:str,securityLabel=None):
+    global jena_url
     if securityLabel == None:
         securityLabel = default_security_label
-    post_uri =  "http://"+jenaURL+":"+jenaPort+"/"+ dataset +"/update"
+    post_uri =  jena_url+"/"+ dataset +"/update"
     headers = {
         'Accept': '*/*',
         'Security-Label':securityLabel,
@@ -241,9 +266,38 @@ def get_subtypes(super_class,exclude_super = None):
     return sub_classes, sub_list
 
 
+def create_person_insert(user_id, username):
+    names = username.split(" ")
+    uri =  data_uri_stub+user_id
+    return f'''
+        <{uri}> a ies:Person .
+        <{uri}> ies:hasName <{uri+"_NAME"}> .
+        <{uri+"_NAME"}> a ies:PersonName .
+        <{uri+"_SURNAME"}> a ies:Surname .
+        <{uri+"_SURNAME"}> ies:inRepresentation <{uri+"_NAME"}> .
+        <{uri+"_SURNAME"}> ies:representationValue "{names[1]}" .
+        <{uri+"_GIVENNAME"}> a ies:GivenName .
+        <{uri+"_GIVENNAME"}> ies:inRepresentation <{uri+"_NAME"}> .
+        <{uri+"_GIVENNAME"}> ies:representationValue "{names[0]}" .
+    '''
+
+@app.get("/test-user-passthrough")
+def test_user(request: Request):
+    try:
+
+        user = access_client.get_user_details(request.headers)
+        pi = create_person_insert(user['user_id'], user["username"])
+        return [user, pi]
+    except exceptions.HTTPError as e:
+        raise HTTPException(e.response.status_code)
+
+@app.get("/version-info")
+def version():
+    return config["metadata"]
+
 @app.get("/")
 def read_root():
-    return "NDT-DEMO"
+    return {"ok": True}
 
 @app.get("/assessment-classes", response_model=List[IesClass],description="returns all the subclasses of ies:Assessment that are in the ontology")
 def get_assessments():
@@ -454,6 +508,28 @@ def post_flag_visit(request:Request,visited:IesEntity):
     run_sparql_update(query=query,securityLabel=visited.securityLabel)
     return flag_state
 
+# def example_def_post_flag_visit(request: Request, visited: IesEntity):
+#     if not visited or not visited.uri:
+#         raise HTTPException(422,"URI of flagged entity must be provided")
+#     try:
+#         user = access_client.get_user_details(request.headers)
+#         pi = create_person_insert(user['user_id'], user["username"])
+#         flag_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
+#         flag_state = data_uri_stub+str(uuid.uuid4())
+#         query = f"""
+#             INSERT DATA {{
+#                 <{flag_state}> ies:interestedIn <{visited.uri}> .
+#                 <{flag_state}> ies:isStateOf <{flagger}> .
+#                 <{flag_state}> ies:inPeriod <{flag_time}> .
+#                 <{flag_state}> a ndt:InterestedInVisiting .
+#                 {pi}
+#             }}
+#         """
+#         run_sparql_update(query=query,securityLabel=visited.securityLabel)
+#         return flag_state
+#     except exceptions.HTTPError as e:
+#         raise HTTPException(e.response.status)
+
 @app.post("/flag-to-investigate",description="Add a flag to an Entity instance as being worth investigating- URI of Entity must be provided")
 def post_flag_visit(request:Request,visited:IesEntity):
     if not visited or not visited.uri:
@@ -621,6 +697,7 @@ def post_default_security_label(label:str):
 @app.get("/default-security-label",
           description="Gets the default security label used when writing data")
 def get_default_security_label():
+    
     return default_security_label
 
 #@app.post("/assessments")
@@ -665,11 +742,11 @@ def post_assessment(ass: IesAssessment, req:Request):
             return ass.uri
     raise HTTPException(status_code=400, detail="Could not create assessment")    
 
-#Create a temporary person for this demo...until we can do something else...
+# #Create a temporary person for this demo...until we can do something else...
 person = IesPerson(uri=test_person_uri,givenName = "Test",surname = "User")
 post_person(person)
 
 
 
-#if __name__ == "__main__":
-#    uvicorn.run(app, host="0.0.0.0", port=int(5021),reload=app)
+if __name__ == "__main__":
+   uvicorn.run(app, host="0.0.0.0", port=int(port))
