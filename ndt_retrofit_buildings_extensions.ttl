@@ -42,9 +42,9 @@ ndt:ParkHome        ies:powertype       ndt:PropertyClass .
 ndt:SemiDetached            rdf:type            rdfs:Class .
 ndt:SemiDetached            rdfs:subClassOf     ndt:Building .
 ndt:SemiDetached            ies:powertype       ndt:BuildFormClass .
-ndt:EnclosedEndTerrace      rdf:type            rdfs:Class .
-ndt:EnclosedEndTerrace      rdfs:subClassOf     ndt:Building .
-ndt:EnclosedEndTerrace      ies:powertype       ndt:BuildFormClass .
+ndt:EndTerrace              rdf:type            rdfs:Class .
+ndt:EndTerrace              rdfs:subClassOf     ndt:Building .
+ndt:EndTerrace              ies:powertype       ndt:BuildFormClass .
 ndt:Detached                rdf:type            rdfs:Class .
 ndt:Detached                rdfs:subClassOf     ndt:Building .
 ndt:Detached                ies:powertype       ndt:BuildFormClass .
