@@ -74,8 +74,6 @@ ndt:SandstoneOrLimestoneWall    rdf:type            rdfs:Class .
 ndt:SandstoneOrLimestoneWall    rdfs:subClassOf     ndt:Wall .
 ndt:SolidBrickWall              rdf:type            rdfs:Class .
 ndt:SolidBrickWall              rdfs:subClassOf     ndt:Wall .
-ndt:GraniteOrWhinstoneWall      rdf:type            rdfs:Class .
-ndt:GraniteOrWhinstoneWall      rdfs:subClassOf     ndt:Wall .
 ndt:CavityWall                  rdf:type            rdfs:Class .
 ndt:CavityWall                  rdfs:subClassOf     ndt:Wall .
 ndt:TimberFrameWall             rdf:type            rdfs:Class .
@@ -86,8 +84,6 @@ ndt:CobWall                     rdf:type            rdfs:Class .
 ndt:CobWall                     rdfs:subClassOf     ndt:Wall .
 ndt:ParkHomeWall                rdf:type            rdfs:Class .
 ndt:ParkHomeWall                rdfs:subClassOf     ndt:Wall .
-ndt:SystemBuiltWall             rdf:type            rdfs:Class .
-ndt:SystemBuiltWall             rdfs:subClassOf     ndt:Wall .
 
 # wall insulation types
 ndt:WallInsulation                              rdf:type            rdfs:Class . # Used for Other
@@ -98,8 +94,6 @@ ndt:FilledCavityWallInsulation                  rdf:type            rdfs:Class .
 ndt:FilledCavityWallInsulation                  rdfs:subClassOf     ndt:WallInsulation.
 ndt:InternalWallInsulation                      rdf:type            rdfs:Class .
 ndt:InternalWallInsulation                      rdfs:subClassOf     ndt:WallInsulation.
-ndt:ExternalWallInsulation                      rdf:type            rdfs:Class .
-ndt:ExternalWallInsulation                      rdfs:subClassOf     ndt:WallInsulation.
 ndt:AsBuiltWallInsulation                       rdf:type            rdfs:Class .
 ndt:AsBuiltWallInsulation                       rdfs:subClassOf     ndt:WallInsulation.
 ndt:UnknownWallInsulation                       rdf:type            rdfs:Class .
@@ -170,27 +164,58 @@ ndt:RoofWithRooms                     rdfs:subClassOf     ndt:Roof .
 # roof insulation types
 ndt:RoofInsulation                              rdf:type            rdfs:Class . # Used for Other
 ndt:RoofInsulation                              rdfs:subClassOf     ndt:Insulation .
-    "Rafters": "RaftersRoofInsulation",
-    "InsulatedAtRafters": "RaftersRoofInsulation",
-    "Joists": "JoistsRoofInsulation",
-    "CeilingInsulated": "CeilingInsulation",
-    "Unknown": None,
-    "None": None,
-    "FlatRoofInsulation": "FlatRoofInsulation",
-    "SlopingCeilingInsulation": "SlopingCeilingRoofInsulation",
-    "NoInsulation": None,
-    "NoInsulation(Assumed)": "AssumedNoInsulation",
-    "LoftInsulation(Assumed)": "AssumedLoftInsulation",
-    "LoftInsulation": "LoftInsulation",
-    "LimitedInsulationAssumed": "AssumedLimitedInsulation",
-    "LimitedInsulation": "LimitedInsulation",
-    "InsulatedAssumed": "InsulatedAssumed",
-    "NoInsulationAssumed": "NoInsulationAssumed",
-    "NoInsulation": None,
-    "Other": "RoofInsulation",
-    "Insulated": "RoofInsulation",
-    "Thatched": None,
-    "ThatchedWithAdditionalInsulation": "ThatchedWithAdditionalRoofInsulation",
+ndt:RaftersRoofInsulation                       rdf:type            rdfs:Class .
+ndt:RaftersRoofInsulation                       rdfs:subClassOf     ndt:RoofInsulation .
+ndt:JoistsRoofInsulation                        rdf:type            rdfs:Class .
+ndt:JoistsRoofInsulation                        rdfs:subClassOf     ndt:RoofInsulation .
+ndt:CeilingInsulation                           rdf:type            rdfs:Class .
+ndt:CeilingInsulation                           rdfs:subClassOf     ndt:RoofInsulation .
+ndt:FlatRoofInsulation                          rdf:type            rdfs:Class .
+ndt:FlatRoofInsulation                          rdfs:subClassOf     ndt:RoofInsulation .
+ndt:SlopingCeilingRoofInsulation                rdf:type            rdfs:Class .
+ndt:SlopingCeilingRoofInsulation                rdfs:subClassOf     ndt:RoofInsulation .
+ndt:AssumedNoInsulation                         rdf:type            rdfs:Class .
+ndt:AssumedNoInsulation                         rdfs:subClassOf     ndt:RoofInsulation .
+ndt:AssumedLoftInsulation                       rdf:type            rdfs:Class .
+ndt:AssumedLoftInsulation                       rdfs:subClassOf     ndt:RoofInsulation .
+ndt:LoftInsulation                              rdf:type            rdfs:Class .
+ndt:LoftInsulation                              rdfs:subClassOf     ndt:RoofInsulation .
+ndt:AssumedLimitedInsulation                    rdf:type            rdfs:Class .
+ndt:AssumedLimitedInsulation                    rdfs:subClassOf     ndt:RoofInsulation .
+ndt:LimitedInsulation                           rdf:type            rdfs:Class .
+ndt:LimitedInsulation                           rdfs:subClassOf     ndt:RoofInsulation .
+ndt:InsulatedAssumed                            rdf:type            rdfs:Class .
+ndt:InsulatedAssumed                            rdfs:subClassOf     ndt:RoofInsulation .
+ndt:NoInsulationAssumed                         rdf:type            rdfs:Class .
+ndt:NoInsulationAssumed                         rdfs:subClassOf     ndt:RoofInsulation .
+ndt:ThatchedWithAdditionalRoofInsulation        rdf:type            rdfs:Class .
+ndt:ThatchedWithAdditionalRoofInsulation        rdfs:subClassOf     ndt:RoofInsulation .
+
+# Window types
+ndt:Window                              rdf:type            rdfs:Class .
+ndt:Window                              rdfs:subClassOf     ndt:PartOfBuilding .
+ndt:DoubleGlazedPre2002Window           rdf:type            rdfs:Class .
+ndt:DoubleGlazedPre2002Window           rdfs:subClassOf     ndt:Window .
+ndt:DoubleGlazed2002OrLaterWindow       rdf:type            rdfs:Class .
+ndt:DoubleGlazed2002OrLaterWindow       rdfs:subClassOf     ndt:Window .
+ndt:DoubleGlazedAfter2002Window         rdf:type            rdfs:Class .
+ndt:DoubleGlazedAfter2002Window         rdfs:subClassOf     ndt:Window .
+ndt:DoubleGlazedBefore2002Window        rdf:type            rdfs:Class .
+ndt:DoubleGlazedBefore2002Window        rdfs:subClassOf     ndt:Window .
+ndt:DoubleGlazedWindow                  rdf:type            rdfs:Class .
+ndt:DoubleGlazedWindow                  rdfs:subClassOf     ndt:Window .
+ndt:SecondaryGlazedWindow               rdf:type            rdfs:Class .
+ndt:SecondaryGlazedWindow               rdfs:subClassOf     ndt:Window .
+ndt:SingleGlazedWindow                  rdf:type            rdfs:Class .
+ndt:SingleGlazedWindow                  rdfs:subClassOf     ndt:Window .
+ndt:DoubleGlazingWindow                 rdf:type            rdfs:Class .
+ndt:DoubleGlazingWindow                 rdfs:subClassOf     ndt:Window .
+ndt:TripleGlazedWindow                  rdf:type            rdfs:Class .
+ndt:TripleGlazedWindow                  rdfs:subClassOf     ndt:Window .
+ndt:DoubleKnownDataWindow               rdf:type            rdfs:Class .
+ndt:DoubleKnownDataWindow               rdfs:subClassOf     ndt:Window .
+ndt:TripleKnownDataWindow               rdf:type            rdfs:Class .
+ndt:TripleKnownDataWindow               rdfs:subClassOf     ndt:Window .
 
 # write-back "flagging" categories
 ndt:BuildingWithDraftsAroundWindowsAndDoors                 rdf:type            rdfs:Class .
