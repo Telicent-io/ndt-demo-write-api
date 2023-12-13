@@ -61,7 +61,7 @@ To flag a building for investigation, call `/flag-to-investigate` and pass in th
 
 To flag a building for visiting, call `/flag-to-visit` and pass in the full URI of the building, the flag URI will be returned
 
-To invalidate a flag, call `/invalidate-flag`, passing in the URI of the flag to be invalidated 
+To invalidate a flag, call `/invalidate-flag`, passing in the URI of the flag to be invalidated. This adds an AssessToBeFalse node to the graph, referring to the flag node. You can override the assessment type by setting `assessmentTypeOverride` to be another subclass of ies:Assess
 
 These can be tested in Insomnia, and a JSON insomnia config is provided in this repo. 
 
