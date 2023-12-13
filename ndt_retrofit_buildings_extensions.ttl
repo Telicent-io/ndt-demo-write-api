@@ -117,16 +117,10 @@ ndt:InternalWallInsulation                      rdf:type            rdfs:Class .
 ndt:InternalWallInsulation                      rdfs:subClassOf     ndt:WallInsulation.
 ndt:AsBuiltWallInsulation                       rdf:type            rdfs:Class .
 ndt:AsBuiltWallInsulation                       rdfs:subClassOf     ndt:WallInsulation.
-ndt:UnknownWallInsulation                       rdf:type            rdfs:Class .
-ndt:UnknownWallInsulation                       rdfs:subClassOf     ndt:WallInsulation.
 ndt:FilledCavityAndInternalWallInsulation       rdf:type            rdfs:Class .
 ndt:FilledCavityAndInternalWallInsulation       rdfs:subClassOf     ndt:WallInsulation.
 ndt:FilledCavityAndExternalWallInsulation       rdf:type            rdfs:Class .
 ndt:FilledCavityAndExternalWallInsulation       rdfs:subClassOf     ndt:WallInsulation.
-ndt:FilledCavityPlusExternalWallInsulation      rdf:type            rdfs:Class .
-ndt:FilledCavityPlusExternalWallInsulation      rdfs:subClassOf     ndt:WallInsulation.
-ndt:FilledCavityPlusInternalWallInsulation      rdf:type            rdfs:Class .
-ndt:FilledCavityPlusInternalWallInsulation      rdfs:subClassOf     ndt:WallInsulation.
 ndt:WallInsulationWithAdditionalInsulation      rdf:type            rdfs:Class .
 ndt:WallInsulationWithAdditionalInsulation      rdfs:subClassOf     ndt:WallInsulation.
 
@@ -135,10 +129,6 @@ ndt:Floor                       rdf:type            rdfs:Class . # Used for Othe
 ndt:Floor                       rdfs:subClassOf     ndt:PartOfBuilding .
 ndt:SolidFloor                  rdf:type            rdfs:Class .
 ndt:SolidFloor                  rdfs:subClassOf     ndt:Floor .
-ndt:SuspendedTimberFloor        rdf:type            rdfs:Class .
-ndt:SuspendedTimberFloor        rdfs:subClassOf     ndt:Floor .
-ndt:SuspendedNotTimberFloor     rdf:type            rdfs:Class .
-ndt:SuspendedNotTimberFloor     rdfs:subClassOf     ndt:Floor .
 ndt:Suspended                   rdf:type            rdfs:Class .
 ndt:Suspended                   rdfs:subClassOf     ndt:Floor .
 ndt:OtherPremisesBelowFloor     rdf:type            rdfs:Class .
@@ -149,8 +139,6 @@ ndt:AnotherDwellingBelowFloor   rdfs:subClassOf     ndt:Floor .
 # floor insulation types
 ndt:InsulatedFloor                              rdf:type            rdfs:Class . # Used for Other
 ndt:InsulatedFloor                              rdfs:subClassOf     ndt:Insulation .
-ndt:RetroFittedInsulatedFloor                   rdf:type            rdfs:Class .
-ndt:RetroFittedInsulatedFloor                   rdfs:subClassOf     ndt:InsulatedFloor .
 ndt:LimitedFloorInsulation                      rdf:type            rdfs:Class .
 ndt:LimitedFloorInsulation                      rdfs:subClassOf     ndt:InsulatedFloor .
 
@@ -165,16 +153,6 @@ ndt:OtherPremisesAboveRoof            rdf:type            rdfs:Class .
 ndt:OtherPremisesAboveRoof            rdfs:subClassOf     ndt:Roof .
 ndt:PitchedRoof                       rdf:type            rdfs:Class .
 ndt:PitchedRoof                       rdfs:subClassOf     ndt:Roof .
-ndt:PitchedNormalLoftAccessRoof       rdf:type            rdfs:Class .
-ndt:PitchedNormalLoftAccessRoof       rdfs:subClassOf     ndt:Roof .
-ndt:PitchedNormalNoLoftAccessRoof     rdf:type            rdfs:Class .
-ndt:PitchedNormalNoLoftAccessRoof     rdfs:subClassOf     ndt:Roof .
-ndt:PitchedThatchedRoof               rdf:type            rdfs:Class .
-ndt:PitchedThatchedRoof               rdfs:subClassOf     ndt:Roof .
-ndt:SameDwellingAboveRoof             rdf:type            rdfs:Class .
-ndt:SameDwellingAboveRoof             rdfs:subClassOf     ndt:Roof .
-ndt:PitchedWithSlopingCeilingRoof     rdf:type            rdfs:Class .
-ndt:PitchedWithSlopingCeilingRoof     rdfs:subClassOf     ndt:Roof .
 ndt:ParkHomeRoof                      rdf:type            rdfs:Class .
 ndt:ParkHomeRoof                      rdfs:subClassOf     ndt:Roof .
 ndt:ThatchedRoof                      rdf:type            rdfs:Class .
@@ -215,10 +193,6 @@ ndt:ThatchedWithAdditionalRoofInsulation        rdfs:subClassOf     ndt:RoofInsu
 # Window types
 ndt:Window                              rdf:type            rdfs:Class .
 ndt:Window                              rdfs:subClassOf     ndt:PartOfBuilding .
-ndt:DoubleGlazedPre2002Window           rdf:type            rdfs:Class .
-ndt:DoubleGlazedPre2002Window           rdfs:subClassOf     ndt:Window .
-ndt:DoubleGlazed2002OrLaterWindow       rdf:type            rdfs:Class .
-ndt:DoubleGlazed2002OrLaterWindow       rdfs:subClassOf     ndt:Window .
 ndt:DoubleGlazedAfter2002Window         rdf:type            rdfs:Class .
 ndt:DoubleGlazedAfter2002Window         rdfs:subClassOf     ndt:Window .
 ndt:DoubleGlazedBefore2002Window        rdf:type            rdfs:Class .
@@ -229,14 +203,8 @@ ndt:SecondaryGlazedWindow               rdf:type            rdfs:Class .
 ndt:SecondaryGlazedWindow               rdfs:subClassOf     ndt:Window .
 ndt:SingleGlazedWindow                  rdf:type            rdfs:Class .
 ndt:SingleGlazedWindow                  rdfs:subClassOf     ndt:Window .
-ndt:DoubleGlazingWindow                 rdf:type            rdfs:Class .
-ndt:DoubleGlazingWindow                 rdfs:subClassOf     ndt:Window .
 ndt:TripleGlazedWindow                  rdf:type            rdfs:Class .
 ndt:TripleGlazedWindow                  rdfs:subClassOf     ndt:Window .
-ndt:DoubleKnownDataWindow               rdf:type            rdfs:Class .
-ndt:DoubleKnownDataWindow               rdfs:subClassOf     ndt:Window .
-ndt:TripleKnownDataWindow               rdf:type            rdfs:Class .
-ndt:TripleKnownDataWindow               rdfs:subClassOf     ndt:Window .
 
 # write-back "flagging" categories
 ndt:BuildingWithDraftsAroundWindowsAndDoors                 rdf:type            rdfs:Class .
