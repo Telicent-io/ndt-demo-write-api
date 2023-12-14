@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Union, Optional
 from pydantic import BaseModel
 from datetime import datetime, date
@@ -13,8 +14,33 @@ import uuid
 import pygeohash as pgh
 from access import AccessClient
 import configparser
-# from rdflib.plugins.sparql.results.jsonresults import JSONResultSerializer
-# from rdflib import Graph, URIRef, Literal, XSD, Namespace
+from maplib.access import SecurityLabelBuilder, EDHSecurityLabelsV2
+from utils import get_headers as get_forwarding_headers
+
+from rdflib import Graph, plugin, URIRef, BNode, Literal
+from rdflib.namespace import DC, DCAT, DCTERMS, OWL, RDF, RDFS, XMLNS, XSD
+from rdflib.serializer import Serializer
+
+class ClassificationEmum(str, Enum):
+    official = "O"
+    official_sensitive = "OS"
+    secret = "S"
+    top_secret= "TS"
+
+class EDH(BaseModel):
+    permitted_organisations: List[str] = []
+    permitted_nationalities: List[str] = []
+    classification: ClassificationEmum = 'O'
+
+    def to_string(self):
+        builder = SecurityLabelBuilder()
+        if len(self.permitted_organisations) > 0:
+            builder.add_multiple(EDHSecurityLabelsV2.PERMITTED_ORGANISATIONS.value, *self.permitted_organisations)
+        if len(self.permitted_nationalities) > 0:
+            builder.add_multiple(EDHSecurityLabelsV2.PERMITTED_NATIONALITIES.value, *self.permitted_nationalities)
+        if self.classification:
+            builder.add(EDHSecurityLabelsV2.CLASSIFICATION.value, self.classification.value)
+        return builder.build()
 
 #If you're running this yourself, and the Jena instance you're using is not local, you can used environment variables to override
 jenaURL = os.getenv("JENA_URL", "localhost")
@@ -22,7 +48,7 @@ jenaPort = os.getenv("JENA_PORT", "3030")
 jenaProtocol = os.getenv("JENA_PROTOCOL", "http")
 ontoDataset = os.getenv("ONTO_DATASET", "ontology")
 dataset = os.getenv("KNOWLEDGE_DATASET", "knowledge")
-default_security_label = os.getenv("DEFAULT_SECURITY_LABEL",'')
+default_security_label = EDH(classification=ClassificationEmum.official) 
 data_uri_stub = os.getenv("DATA_URI",'http://nationaldigitaltwin.gov.uk/data#') #This can be overridden in use
 update_mode = os.getenv("UPDATE_MODE","KAFKA")
 access_protocol = os.getenv("ACCESS_PROTOCOL", "http")
@@ -30,6 +56,20 @@ access_host = os.getenv("ACCESS_URL", "localhost")
 access_port = os.getenv("ACCESS_PORT", "8091")
 dev_mode = os.getenv("DEV", "False")
 port = os.getenv("PORT", "5021")
+
+broker = os.getenv("BOOTSTRAP_SERVERS","localhost:9092")
+fpTopic = os.getenv("IES_TOPIC","knowledge")
+
+
+if update_mode == "KAFKA":
+    from maplib.sinks import KafkaSink
+    from maplib import Adapter, Record,RecordUtils
+
+    knowledgeSink = KafkaSink(topic=fpTopic, broker=broker)
+    knowledgeAdapter = Adapter(knowledgeSink, name="IoW Write-Back API",source_name="local data")
+
+def get_headers(security_labels):
+    return RecordUtils.to_headers({"Security-Label":security_labels, "Content-Type": "application/n-triples"})
 
 config = configparser.ConfigParser()
 config.read('setup.cfg')
@@ -85,13 +125,14 @@ prefixes = format_prefixes()
 #Test person is created so we can assign assessments to someone. Once access to user info is available, this will be replaced with the logged in user. i.e. this is just a temporary fix for testing purposes.
 test_person_uri = data_uri_stub+"TestUser"
 
+
 class IesThing(BaseModel):
     """
     The top of the class tree
         uri - the uri of the created data object
     """
     uri:str = None 
-    securityLabel: Optional[str] = None
+    securityLabel: EDH = None
     types:List[str] = []
 
 class IesElement(IesThing):
@@ -117,7 +158,7 @@ class IesAssessToBeTrue(IesAssessment):
 
 class IesAssessToBeFalse(IesAssessment):
     """
-    An IES assessment used to validate a statement or state
+    An IES assessment used to invalidate a statement or state
     """
     types: List[str] = [ies+"AssessToBeFalse"]
 
@@ -189,6 +230,7 @@ with open('README.md', 'r') as file:
 
 app = FastAPI(title="NDT Assessment Write-Back API",
               description=description,
+              docs_url="/api-docs",
               license_info={
                     "name": "Apache 2.0",
                     "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -207,26 +249,39 @@ app.add_middleware(
 assessment_classes = {}
 building_state_classes = {}
 
-def run_sparql_query(query:str,query_dataset=dataset):
+def run_sparql_query(query:str,headers:dict[str,str], query_dataset=dataset):
     global jena_url
     get_uri = jena_url+"/"+ query_dataset +"/query"
-    response = requests.get(get_uri,params={'query':prefixes + query})
+    response = requests.get(get_uri,params={'query':prefixes + query}, headers=headers)
     return response.json()
 
-def run_sparql_update(query:str,securityLabel=None):
-    global jena_url
-    if securityLabel == None:
-        securityLabel = default_security_label
-    post_uri =  jena_url+"/"+ dataset +"/update"
-    headers = {
-        'Accept': '*/*',
-        'Security-Label':securityLabel,
-        'Content-Type': 'application/sparql-update'
-    }
-    requests.post(post_uri,headers=headers,data=prefixes+query)
+def run_sparql_update(query:str,forwarding_headers:dict[str,str]={}, securityLabel=None):
+    global jena_url, default_security_label
+    sec_label = securityLabel
+
+    if sec_label is None:
+        sec_label = default_security_label
+    if update_mode == "SCG":
+    
+        post_uri =  jena_url+"/"+ dataset +"/update"
+        headers = {
+            'Accept': '*/*',
+            'Security-Label':sec_label.to_string(),
+            'Content-Type': 'application/sparql-update',
+            **forwarding_headers
+        }
+        requests.post(post_uri,headers=headers,data=prefixes+query)
+    elif update_mode == "KAFKA":
+        g = Graph()
+        g.update(query)
+        outData = g.serialize(format='nt')
+        record = Record(get_headers(sec_label.to_string()),None,outData)
+        knowledgeAdapter.send(record)
+    else:
+        raise Exception("unknown update mode: "+update_mode)
 
 
-def get_subtypes(super_class,exclude_super = None):
+def get_subtypes(super_class,headers:dict[str,str], exclude_super = None):
     sub_classes = {}
     sub_list = []
     if exclude_super != None and exclude_super != "":
@@ -240,7 +295,7 @@ def get_subtypes(super_class,exclude_super = None):
                 ?sub rdfs:subClassOf ?parent .
                 OPTIONAL {{ ?sub rdfs:comment ?comment}}
                 {filter_clause}
-            }}""",query_dataset=ontoDataset)
+            }}""",headers,  query_dataset=ontoDataset)
 
     if results and results['results'] and results['results']['bindings']:
         for sub in results['results']['bindings']:
@@ -269,7 +324,7 @@ def get_subtypes(super_class,exclude_super = None):
 def create_person_insert(user_id, username):
     names = username.split(" ")
     uri =  data_uri_stub+user_id
-    return f'''
+    return uri, f'''
         <{uri}> a ies:Person .
         <{uri}> ies:hasName <{uri+"_NAME"}> .
         <{uri+"_NAME"}> a ies:PersonName .
@@ -300,24 +355,26 @@ def read_root():
     return {"ok": True}
 
 @app.get("/assessment-classes", response_model=List[IesClass],description="returns all the subclasses of ies:Assessment that are in the ontology")
-def get_assessments():
-    sub_classes, sub_list = get_subtypes(ies+"Assessment")
+def get_assessments(req:Request):
+    sub_classes, sub_list = get_subtypes(ies+"Assessment", get_forwarding_headers(req.headers))
     global assessment_classes
     assessment_classes = sub_classes
     return sub_list
 
 @app.get("/buildings/states/classes", response_model=List[IesClass],description="returns all the subclasses of BuildingState that are in the ontology")
-def get_building_state_classes():
-    sub_classes, sub_list = get_subtypes(ndt_ont+"BuildingState",exclude_super=ies+"Location")
+def get_building_state_classes(req: Request):
+    sub_classes, sub_list = get_subtypes(ndt_ont+"BuildingState", get_forwarding_headers(req.headers),exclude_super=ies+"Location")
     global building_state_classes
     building_state_classes = sub_classes
     return sub_list
 
 
-@app.post("/people",description="Creates a new Person")
+# @app.post("/people",description="Creates a new Person")
 def post_person(per: IesPerson):
     mint_uri(per)
-    query = f'''INSERT DATA 
+    query = f'''
+    {format_prefixes()}
+    INSERT DATA 
             {{
                 <{per.uri}> a ies:Person .
                 <{per.uri}> ies:hasName <{per.uri+"_NAME"}> .
@@ -333,12 +390,13 @@ def post_person(per: IesPerson):
     return per.uri
 
 @app.get("/buildings",response_model=List[Building],description="Gets all the buildings inside a geohash (min 5 digits) along with their types, TOIDs, UPRNs, and current energy ratings")
-def get_buildings_in_geohash(geohash:str):
+def get_buildings_in_geohash(geohash:str, req: Request):
     if len(geohash) < 5:
         raise HTTPException(422,detail="Lat Lon range too wide, please provide at least five digits")  
     gh = "http://geohash.org/"+geohash
    
     query = f"""
+        {format_prefixes()}
         SELECT
             ?building
             ?uprn_id
@@ -397,7 +455,7 @@ def get_buildings_in_geohash(geohash:str):
 
     out = {}
     out_array = []
-    results = run_sparql_query(query)
+    results = run_sparql_query(query, get_forwarding_headers(req.headers))
 
     if results and results['results'] and results['results']['bindings']:
         for result in results['results']['bindings']:
@@ -431,28 +489,42 @@ def get_buildings_in_geohash(geohash:str):
             
     return out_array
 
-@app.post("/invalidate-flag",description="Post to this endpoint to invalidate an existing flag.")
-def invalidate_flag(request:Request,flagUri:str,assessmentTypeOverride:str=prefix_dict["ndt_ont"]+"AssessToBeFalse",securityLabel = default_security_label):
-    assessor = test_person_uri
+class InvalidateFlag(BaseModel):
+    flagUri: str
+    assessmentTypeOverride:str=prefix_dict["ndt_ont"]+"AssessToBeFalse"
+    securityLabel: EDH = None
+@app.post("/invalidate-flag",description="Post to this endpoint to invalidate an existing flag.", response_model=str)
+def invalidate_flag(request:Request,invalid: InvalidateFlag):
+    try:
+        user = access_client.get_user_details(request.headers)
+    except exceptions.RequestException as e:
+        if e.response is not None:
+            raise HTTPException(e.response.status_code, f"Error calling Access:{e.response.reason}")
+        else: 
+            raise HTTPException(500, f"Error calling Access, Internal Server Error")
+    assessor, person = create_person_insert(user['user_id'], user["username"])
+  
     assessment_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
     assessment = data_uri_stub+str(uuid.uuid4())
-    (ass_subclasses,ass_list) = get_subtypes(ies+"Assess")
-    print(ass_subclasses)
-    if assessmentTypeOverride not in ass_subclasses:
+    (ass_subclasses,ass_list) = get_subtypes(ies+"Assess", get_forwarding_headers(request.headers))
+    # print(ass_subclasses)
+    if lengthen(invalid.assessmentTypeOverride) not in ass_subclasses:
         raise HTTPException(422,"assessmentTypeOverride must be a subclass of ies:Assess")
     query = f"""
+    {format_prefixes()}
         INSERT DATA {{
-            <{assessment}> a <{assessmentTypeOverride}> .
+            <{assessment}> a <{invalid.assessmentTypeOverride}> .
             <{assessment}> ies:assessor <{assessor}> .
-            <{assessment}> ies:assessed <{lengthen(flagUri)}> .
+            {person}
+            <{assessment}> ies:assessed <{lengthen(invalid.flagUri)}> .
             <{assessment}> ies:inPeriod <{assessment_time}> .
         }}
     """
-    run_sparql_update(query=query,securityLabel=securityLabel)
+    run_sparql_update(query=query,securityLabel=invalid.securityLabel)
     return assessment
 
 @app.get("/buildings/{uprn}", response_model=IesEntityAndStates,description="returns the building that corresponds to the provided UPRN")
-def get_building_by_uprn(uprn:str):
+def get_building_by_uprn(uprn:str, req:Request):
     query = f'''SELECT ?building ?buildingType ?state ?stateType WHERE 
                 {{
                     ?building ies:isIdentifiedBy ?uprnID .
@@ -464,7 +536,7 @@ def get_building_by_uprn(uprn:str):
                     }}
                 }}
             '''
-    results = run_sparql_query(query)
+    results = run_sparql_query(query, get_forwarding_headers(req.headers))
     building = {
         "uri":"",
         "types":[],
@@ -490,17 +562,29 @@ def get_building_by_uprn(uprn:str):
         out["states"].append(states[state])
     return out
 
-@app.post("/flag-to-visit",description="Add a flag to an Entity instance as being worth visiting - URI of Entity must be provided")
+@app.post("/flag-to-visit",description="Add a flag to an Entity instance as being worth visiting - URI of Entity must be provided", response_model=str)
 def post_flag_visit(request:Request,visited:IesEntity):
     if not visited or not visited.uri:
         raise HTTPException(422,"URI of flagged entity must be provided")
-    flagger = test_person_uri
+    try:
+        user = access_client.get_user_details(request.headers)
+    except exceptions.RequestException as e:
+
+        if e.response is not None:
+            raise HTTPException(e.response.status_code, f"Error calling Access:{e.response.reason}")
+        else: 
+            raise HTTPException(500, f"Error calling Access, Internal Server Error")
+    flagger, person = create_person_insert(user['user_id'], user["username"])
+    
+  
     flag_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
     flag_state = data_uri_stub+str(uuid.uuid4())
     query = f"""
+        {format_prefixes()}
         INSERT DATA {{
             <{flag_state}> ies:interestedIn <{visited.uri}> .
             <{flag_state}> ies:isStateOf <{flagger}> .
+            {person}
             <{flag_state}> ies:inPeriod <{flag_time}> .
             <{flag_state}> a ndt:InterestedInVisiting .
         }}
@@ -508,50 +592,42 @@ def post_flag_visit(request:Request,visited:IesEntity):
     run_sparql_update(query=query,securityLabel=visited.securityLabel)
     return flag_state
 
-# def example_def_post_flag_visit(request: Request, visited: IesEntity):
-#     if not visited or not visited.uri:
-#         raise HTTPException(422,"URI of flagged entity must be provided")
-#     try:
-#         user = access_client.get_user_details(request.headers)
-#         pi = create_person_insert(user['user_id'], user["username"])
-#         flag_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
-#         flag_state = data_uri_stub+str(uuid.uuid4())
-#         query = f"""
-#             INSERT DATA {{
-#                 <{flag_state}> ies:interestedIn <{visited.uri}> .
-#                 <{flag_state}> ies:isStateOf <{flagger}> .
-#                 <{flag_state}> ies:inPeriod <{flag_time}> .
-#                 <{flag_state}> a ndt:InterestedInVisiting .
-#                 {pi}
-#             }}
-#         """
-#         run_sparql_update(query=query,securityLabel=visited.securityLabel)
-#         return flag_state
-#     except exceptions.HTTPError as e:
-#         raise HTTPException(e.response.status)
-
-@app.post("/flag-to-investigate",description="Add a flag to an Entity instance as being worth investigating- URI of Entity must be provided")
+@app.post("/flag-to-investigate",description="Add a flag to an Entity instance as being worth investigating- URI of Entity must be provided", response_model=str)
 def post_flag_visit(request:Request,visited:IesEntity):
     if not visited or not visited.uri:
         raise HTTPException(422,"URI of flagged entity must be provided")
-    flagger = test_person_uri
+    try:
+        user = access_client.get_user_details(request.headers)
+    except exceptions.RequestException as e:
+
+        if e.response is not None:
+            raise HTTPException(e.response.status_code, f"Error calling Access:{e.response.reason}")
+        else: 
+            
+            raise HTTPException(500, f"Error calling Access, Internal Server Error")
+   
+    flagger, person = create_person_insert(user['user_id'], user["username"])
+        
+    
     flag_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
     flag_state = data_uri_stub+str(uuid.uuid4())
     query = f"""
+     {format_prefixes()}
         INSERT DATA {{
             <{flag_state}> ies:interestedIn <{visited.uri}> .
             <{flag_state}> ies:isStateOf <{flagger}> .
+            {person} 
             <{flag_state}> ies:inPeriod <{flag_time}> .
             <{flag_state}> a ndt:InterestedInInvestigating .
         }}
     """
-    run_sparql_update(query=query,securityLabel=visited.securityLabel)
+    run_sparql_update(query=query, forwarding_headers=get_forwarding_headers(request.headers),securityLabel=visited.securityLabel)
     return flag_state
 
 #@app.post("/buildings/states",description="Add a new state to a building")
 def post_building_state(bs: IesState):
     if bs.stateType not in building_state_classes:
-        get_building_states()
+        # get_building_states()
         if bs.stateType not in building_state_classes:
             raise HTTPException(status_code=404, detail="Building State Class: " + bs.stateType + " not found")
     mint_uri(bs)
@@ -678,24 +754,27 @@ def post_assess_to_be_false(ass:IesAssessToBeFalse):
     return ass.uri
 
 @app.post("/uri-stub",
-          description="Sets the default uri stub used by the API when generating data uris - it will append a UUID to the stub for every URI it creates")
+          description="Sets the default uri stub used by the API when generating data uris - it will append a UUID to the stub for every URI it creates", status_code=204)
 def post_uri_stub(uri:str):
     data_uri_stub = uri
-    return data_uri_stub
+    return 
 
 @app.get("/uri-stub",
           description="Gets the  default uri stub used by the API when generating data uris")
 def get_uri_stub():
     return data_uri_stub
 
+
+
 @app.post("/default-security-label",
-          description="Sets the default security label used when writing data")
-def post_default_security_label(label:str):
+          description="Sets the default security label used when writing data",  status_code=204)
+def post_default_security_label(label:EDH):
+    global default_security_label
     default_security_label = label
-    return default_security_label
+    return
 
 @app.get("/default-security-label",
-          description="Gets the default security label used when writing data")
+          description="Gets the default security label used when writing data", response_model=EDH)
 def get_default_security_label():
     
     return default_security_label
@@ -743,8 +822,8 @@ def post_assessment(ass: IesAssessment, req:Request):
     raise HTTPException(status_code=400, detail="Could not create assessment")    
 
 # #Create a temporary person for this demo...until we can do something else...
-person = IesPerson(uri=test_person_uri,givenName = "Test",surname = "User")
-post_person(person)
+# person = IesPerson(uri=test_person_uri,givenName = "Test",surname = "User")
+# post_person(person)
 
 
 
