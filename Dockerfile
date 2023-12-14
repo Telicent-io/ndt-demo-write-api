@@ -1,13 +1,13 @@
-FROM python:3.11-slim
+FROM 098669589541.dkr.ecr.eu-west-2.amazonaws.com/maplib
+ARG PIP_EXTRA_INDEX_URL
 
-WORKDIR /app
+
 
 ENV PATH /home/worker/.local/bin:${PATH},
-COPY start.sh .
-RUN chmod +x start.sh
+
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+RUN pip install  -r requirements.txt
 
 COPY LICENSE .
 COPY README.md .
@@ -16,4 +16,4 @@ COPY access.py .
 COPY utils.py . 
 COPY setup.cfg . 
 
-CMD "./start.sh"
+CMD ["uvicorn", "api:app", "--host=0.0.0.0", "--port=80", "--workers=4"]
