@@ -231,6 +231,7 @@ with open('README.md', 'r') as file:
 app = FastAPI(title="NDT Assessment Write-Back API",
               description=description,
               docs_url="/api-docs",
+              openapi_url="/api-docs/openapi.json",
               license_info={
                     "name": "Apache 2.0",
                     "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
