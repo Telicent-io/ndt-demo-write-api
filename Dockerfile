@@ -1,5 +1,6 @@
 FROM python:3.11
 
+ARG PIP_EXTRA_INDEX_URL
 WORKDIR /app
 
 RUN adduser --disabled-password worker

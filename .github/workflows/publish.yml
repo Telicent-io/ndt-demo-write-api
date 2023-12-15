@@ -20,7 +20,7 @@ jobs:
   publish_deployment_image_to_registries:
     needs:
       - get_version
-    uses: Telicent-io/telicent-test/.github/workflows/push-to-registries.yml@main
+    uses: Telicent-io/telicent-test/.github/workflows/push-to-registries-python.yml@main
     with:
       APP_NAME: telicent-ndt-write-api-demo
       DOCKERFILE: Dockerfile
