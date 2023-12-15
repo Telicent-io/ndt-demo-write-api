@@ -1,6 +1,7 @@
 FROM python:3.11-slim
 ARG PIP_EXTRA_INDEX_URL
 
+ARG PIP_EXTRA_INDEX_URL
 WORKDIR /app
 
 ENV PATH /home/worker/.local/bin:${PATH},
