@@ -8,6 +8,7 @@ fastapi==0.104.1
 h11==0.14.0
 httptools==0.6.1
 idna==3.4
+maplib==0.20.3
 pydantic==2.5.0
 pydantic_core==2.14.1
 pygeohash==1.2.0

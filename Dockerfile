@@ -1,15 +1,21 @@
-FROM python:3.11
+FROM python:3.11-slim
+ARG PIP_EXTRA_INDEX_URL
 
+ARG PIP_EXTRA_INDEX_URL
 WORKDIR /app
 
-RUN adduser --disabled-password worker
-USER worker
-
 ENV PATH /home/worker/.local/bin:${PATH},
+COPY start.sh .
+RUN chmod +x start.sh
 
-COPY . .
+COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-EXPOSE 5021
+COPY LICENSE .
+COPY README.md .
+COPY api.py .
+COPY access.py .
+COPY utils.py . 
+COPY setup.cfg . 
 
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--reload", "--port", "5021"]
+CMD "./start.sh"

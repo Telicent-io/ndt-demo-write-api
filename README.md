@@ -5,10 +5,6 @@ The NDT Assessment Write-Back API was developed to provide NDT users a strictly 
 
 The data creation is centred around states of buildings and the IES AssessToBeTrue event.
 
-## IMPORTANT NOTE
-
-The current version (this one) of the API uses a default person object for all flagging and invalidation operations. The production version will use a person object that corresponds to the current user. 
-
 ## Running the server
 
 If you want to run this locally, you'll need to:
@@ -127,6 +123,6 @@ An Insomnia (https://insomnia.rest/) test suite is also provided as a JSON confi
 
 ## Security
 
-Telicent CORE uses a label-based approach to access control, based on the UK Govt Enterprise Data Headers standard - policy based access control, in other words. In all the IES post operations, you can set a securityLabel property that will override the default label.
+Telicent CORE uses a label-based approach to access control, based on the UK Govt Enterprise Data Headers standard - policy based access control, in other words. This is currently limited in this version of the API to nationality, organisation and classification. In all the IES post operations, you can set a securityLabel property that will override the default label.
 
 You can also get and set the default security label. 
