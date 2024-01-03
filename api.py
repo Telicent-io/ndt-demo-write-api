@@ -16,6 +16,7 @@ from access import AccessClient
 import configparser
 from maplib.access import SecurityLabelBuilder, EDHSecurityLabelsV2
 from utils import get_headers as get_forwarding_headers
+import time
 
 from rdflib import Graph, plugin, URIRef, BNode, Literal
 from rdflib.namespace import DC, DCAT, DCTERMS, OWL, RDF, RDFS, XMLNS, XSD
@@ -390,10 +391,10 @@ def post_person(per: IesPerson):
     run_sparql_update(query=query,securityLabel=per.securityLabel)
     return per.uri
 
-@app.get("/buildings",response_model=List[Building],description="Gets all the buildings inside a geohash (min 5 digits) along with their types, TOIDs, UPRNs, and current energy ratings")
+@app.get("/buildings",response_model=List[Building],description="Gets all the buildings inside a geohash (min 5 digits) or between lat-lon values, along with their types, TOIDs, UPRNs, and current energy ratings")
 def get_buildings_in_geohash(geohash:str, req: Request):
     if len(geohash) < 5:
-        raise HTTPException(422,detail="Lat Lon range too wide, please provide at least five digits")  
+        raise HTTPException(422,detail="geohash range too wide, please provide at least five digits")  
     gh = "http://geohash.org/"+geohash
    
     query = f"""
@@ -435,7 +436,8 @@ def get_buildings_in_geohash(geohash:str, req: Request):
                 OPTIONAL {{
                     ?flag_assessment ies:assessed ?flag .
                     ?flag_assessment ies:inPeriod ?flag_ass_date .
-                    ?flag_assessment ies:assessor ?flag_assessor .
+                    ?flag_assessor_ep ies:isParticipantIn ?flag_assessment .
+                    ?flag_assessor_ep ies:isParticipationOf ?flag_assessor .
                 }}
             }}
     
@@ -507,6 +509,7 @@ def invalidate_flag(request:Request,invalid: InvalidateFlag):
   
     assessment_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
     assessment = data_uri_stub+str(uuid.uuid4())
+    assessment_ep = assessment + "_" + str(int(time.time()))
     (ass_subclasses,ass_list) = get_subtypes(ies+"Assess", get_forwarding_headers(request.headers))
     # print(ass_subclasses)
     if lengthen(invalid.assessmentTypeOverride) not in ass_subclasses:
@@ -515,6 +518,8 @@ def invalidate_flag(request:Request,invalid: InvalidateFlag):
     {format_prefixes()}
         INSERT DATA {{
             <{assessment}> a <{invalid.assessmentTypeOverride}> .
+            <{assessment_ep} ies:isParticipantIn <{assessment}> .
+            <{assessment_ep} ies:isParticipationOf <{assessor}> .
             <{assessment}> ies:assessor <{assessor}> .
             {person}
             <{assessment}> ies:assessed <{lengthen(invalid.flagUri)}> .
