@@ -253,8 +253,12 @@ building_state_classes = {}
 def run_sparql_query(query:str,headers:dict[str,str], query_dataset=dataset):
     global jena_url
     get_uri = jena_url+"/"+ query_dataset +"/query"
-    response = requests.get(get_uri,params={'query':prefixes + query}, headers=headers)
-    return response.json()
+    try: 
+        response = requests.get(get_uri,params={'query':prefixes + query}, headers=headers)
+        response.raise_for_status()
+        return response.json()
+    except exceptions.HTTPError as e:
+        raise HTTPException(e.response.status_code)
 
 def run_sparql_update(query:str,forwarding_headers:dict[str,str]={}, securityLabel=None):
     global jena_url, default_security_label
@@ -350,6 +354,11 @@ def test_user(request: Request):
 @app.get("/version-info")
 def version():
     return config["metadata"]
+
+@app.post("/test-post")
+def test_post(req: Request):
+    print("testing post")
+    return Response()
 
 @app.get("/")
 def read_root():
@@ -507,10 +516,10 @@ def invalidate_flag(request:Request,invalid: InvalidateFlag):
   
     assessment_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
     assessment = data_uri_stub+str(uuid.uuid4())
-    (ass_subclasses,ass_list) = get_subtypes(ies+"Assess", get_forwarding_headers(request.headers))
+    (ass_subclasses,ass_list) = get_subtypes(prefix_dict["ndt_ont"]+"AssessToBeFalse", get_forwarding_headers(request.headers))
     # print(ass_subclasses)
-    if lengthen(invalid.assessmentTypeOverride) not in ass_subclasses:
-        raise HTTPException(422,"assessmentTypeOverride must be a subclass of ies:Assess")
+    if invalid.assessmentTypeOverride != prefix_dict["ndt_ont"]+"AssessToBeFalse" and lengthen(invalid.assessmentTypeOverride) not in ass_subclasses:
+        raise HTTPException(422,"assessmentTypeOverride must be a subclass of ndt_ont:AssessToBeFalse")
     query = f"""
     {format_prefixes()}
         INSERT DATA {{
