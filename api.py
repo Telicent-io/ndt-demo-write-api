@@ -391,6 +391,28 @@ def post_person(per: IesPerson):
     run_sparql_update(query=query,securityLabel=per.securityLabel)
     return per.uri
 
+def generic_building_query():
+    query = f"""
+        {format_prefixes()}
+        SELECT ?building ?part ?part_part ?type
+        WHERE {{
+            ?building ies:inLocation ?geopoint .
+            ?building a ?type .
+            OPTIONAL {{
+                ?part ies:isPartOf ?building .
+                OPTIONAL {{
+                    ?part_part ies:isPartOf ?part
+                }}
+            }}
+
+        }}
+        LIMIT 20
+    """
+
+    results = run_sparql_query(query,headers="")
+
+    return results
+
 @app.get("/buildings",response_model=List[Building],description="Gets all the buildings inside a geohash (min 5 digits) or between lat-lon values, along with their types, TOIDs, UPRNs, and current energy ratings")
 def get_buildings_in_geohash(geohash:str, req: Request):
     if len(geohash) < 5:

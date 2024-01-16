@@ -1,0 +1,76 @@
+@prefix data: <http://nationaldigitaltwin.gov.uk/data#> .
+@prefix epc: <http://gov.uk/government/organisations/department-for-levelling-up-housing-and-communities/ontology/epc#> .
+@prefix geoplace: <https://www.geoplace.co.uk/addresses-streets/location-data/the-uprn#> .
+@prefix ies: <http://ies.data.gov.uk/ontology/ies4#> .
+@prefix ndt: <http://nationaldigitaltwin.gov.uk/ontology#> .
+@prefix quantitykind: <http://qudt.org/2.1/vocab/quantitykind/> .
+@prefix qudt: <http://qudt.org/2.1/schema/qudt/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix telicent: <http://telicent.io/ontology/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+data:CavityWallAt100060760415 ndt:fusedInto data:cavitywallat100060760415_fusion ;
+    rdfs:subClassOf ndt:CavityWall .
+
+data:DoubleGlazedAfter2002WindowAt100060760415 ndt:fusedInto data:doubleglazedafter2002windowat100060760415_fusion ;
+    rdfs:subClassOf ndt:DoubleGlazedAfter2002Window .
+
+data:PitchedRoofAt100060760415 ndt:fusedInto data:pitchedroofat100060760415_fusion ;
+    rdfs:subClassOf ndt:PitchedRoof .
+
+data:SuspendedAt100060760415 ndt:fusedInto data:suspendedat100060760415_fusion ;
+    rdfs:subClassOf ndt:Suspended .
+
+<http://iso.org/iso8601#2023-01-31> a ies:ParticularPeriod ;
+    ies:iso8601PeriodRepresentation "2023-01-31"^^xsd:string .
+
+data:address_a5e94131f1b887d6 a ies:Address ;
+    ies:isIdentifiedBy data:firstlineofaddress_6ca966259ef45cd5,
+        data:postcode_83b168e233f48af0 ;
+    telicent:primaryName "48, Alfred Street, Ryde, PO33 2TS, PO33 2TS"^^xsd:string .
+
+data:building_100060760415 a ndt:House,
+        ndt:SemiDetached ;
+    ies:inLocation data:address_a5e94131f1b887d6 ;
+    ies:isIdentifiedBy data:uprn_100060760415 ;
+    telicent:primaryName "House at 48, Alfred Street, Ryde, PO33 2TS"^^xsd:string .
+
+data:cavitywallat100060760415_fusion a ndt:Fusion ;
+    ies:isPartOf data:state_43b3dbd1169d1b3b025ad70c943e5207fe33ee751cceb22d184d0909d6824b68 .
+
+data:doubleglazedafter2002windowat100060760415_fusion a ndt:Fusion ;
+    ies:isPartOf data:state_43b3dbd1169d1b3b025ad70c943e5207fe33ee751cceb22d184d0909d6824b68 .
+
+data:firstlineofaddress_6ca966259ef45cd5 a ies:FirstLineOfAddress ;
+    ies:representationValue "48, Alfred Street, Ryde, PO33 2TS"^^xsd:string .
+
+data:pitchedroofat100060760415_fusion a ndt:Fusion ;
+    ies:isPartOf data:state_43b3dbd1169d1b3b025ad70c943e5207fe33ee751cceb22d184d0909d6824b68 .
+
+data:postcode_83b168e233f48af0 a ies:PostalCode ;
+    ies:representationValue "PO33 2TS"^^xsd:string .
+
+data:quantity_296d6ab024a19045 a qudt:Quantity ;
+    qudt:hasQuantityKind ndt:SAP_POINT ;
+    qudt:unit quantitykind:Efficiency ;
+    qudt:value "64.0"^^xsd:float .
+
+data:suspendedat100060760415_fusion a ndt:Fusion ;
+    ies:isPartOf data:state_43b3dbd1169d1b3b025ad70c943e5207fe33ee751cceb22d184d0909d6824b68 .
+
+data:uprn_100060760415 a geoplace:UniquePropertyReferenceNumber ;
+    ies:representationValue "100060760415"^^xsd:string .
+
+ndt:CavityWall rdfs:subClassOf ndt:Wall .
+
+ndt:DoubleGlazedAfter2002Window rdfs:subClassOf ndt:Window .
+
+ndt:PitchedRoof rdfs:subClassOf ndt:Roof .
+
+ndt:Suspended rdfs:subClassOf ndt:Floor .
+
+data:state_43b3dbd1169d1b3b025ad70c943e5207fe33ee751cceb22d184d0909d6824b68 a epc:BuildingWithEnergyRatingOfD ;
+    ies:hasCharacteristic data:quantity_296d6ab024a19045 ;
+    ies:inPeriod <http://iso.org/iso8601#2023-01-31> ;
+    ies:isStateOf data:building_100060760415 .
+

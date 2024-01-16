@@ -1,0 +1,82 @@
+@prefix data: <http://nationaldigitaltwin.gov.uk/data#> .
+@prefix epc: <http://gov.uk/government/organisations/department-for-levelling-up-housing-and-communities/ontology/epc#> .
+@prefix geoplace: <https://www.geoplace.co.uk/addresses-streets/location-data/the-uprn#> .
+@prefix ies: <http://ies.data.gov.uk/ontology/ies4#> .
+@prefix ndt: <http://nationaldigitaltwin.gov.uk/ontology#> .
+@prefix quantitykind: <http://qudt.org/2.1/vocab/quantitykind/> .
+@prefix qudt: <http://qudt.org/2.1/schema/qudt/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix telicent: <http://telicent.io/ontology/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+data:DoubleGlazedAfter2002WindowAt100060760493 ndt:fusedInto data:doubleglazedafter2002windowat100060760493_fusion ;
+    rdfs:subClassOf ndt:DoubleGlazedAfter2002Window .
+
+data:NoInsulationAssumedAt100060760493 ndt:fusedInto data:noinsulationassumedat100060760493_fusion ;
+    rdfs:subClassOf ndt:NoInsulationAssumed .
+
+data:PitchedRoofAt100060760493 ndt:fusedInto data:pitchedroofat100060760493_fusion ;
+    rdfs:subClassOf ndt:PitchedRoof .
+
+data:SandstoneWallAt100060760493 ndt:fusedInto data:sandstonewallat100060760493_fusion ;
+    rdfs:subClassOf ndt:SandstoneWall .
+
+data:SolidFloorAt100060760493 ndt:fusedInto data:solidfloorat100060760493_fusion ;
+    rdfs:subClassOf ndt:SolidFloor .
+
+<http://iso.org/iso8601#2012-10-25> a ies:ParticularPeriod ;
+    ies:iso8601PeriodRepresentation "2012-10-25"^^xsd:string .
+
+data:address_7277dc5d766abe28 a ies:Address ;
+    ies:isIdentifiedBy data:firstlineofaddress_8373426c43440332,
+        data:postcode_bbb1dcf42a676380 ;
+    telicent:primaryName "8, Argyll Street, Ryde, PO33 3BZ, PO33 3BZ"^^xsd:string .
+
+data:building_100060760493 a ndt:Detached,
+        ndt:House ;
+    ies:inLocation data:address_7277dc5d766abe28 ;
+    ies:isIdentifiedBy data:uprn_100060760493 ;
+    telicent:primaryName "House at 8, Argyll Street, Ryde, PO33 3BZ"^^xsd:string .
+
+data:doubleglazedafter2002windowat100060760493_fusion a ndt:Fusion ;
+    ies:isPartOf data:state_850538239262012102511465432748182 .
+
+data:firstlineofaddress_8373426c43440332 a ies:FirstLineOfAddress ;
+    ies:representationValue "8, Argyll Street, Ryde, PO33 3BZ"^^xsd:string .
+
+data:noinsulationassumedat100060760493_fusion a ndt:Fusion ;
+    ies:isPartOf data:pitchedroofat100060760493_fusion .
+
+data:postcode_bbb1dcf42a676380 a ies:PostalCode ;
+    ies:representationValue "PO33 3BZ"^^xsd:string .
+
+data:quantity_1026a4f95d0c5cc1 a qudt:Quantity ;
+    qudt:hasQuantityKind ndt:SAP_POINT ;
+    qudt:unit quantitykind:Efficiency ;
+    qudt:value "51.0"^^xsd:float .
+
+data:sandstonewallat100060760493_fusion a ndt:Fusion ;
+    ies:isPartOf data:state_850538239262012102511465432748182 .
+
+data:solidfloorat100060760493_fusion a ndt:Fusion ;
+    ies:isPartOf data:state_850538239262012102511465432748182 .
+
+data:uprn_100060760493 a geoplace:UniquePropertyReferenceNumber ;
+    ies:representationValue "100060760493"^^xsd:string .
+
+ndt:DoubleGlazedAfter2002Window rdfs:subClassOf ndt:Window .
+
+ndt:PitchedRoof rdfs:subClassOf ndt:Roof .
+
+ndt:SandstoneWall rdfs:subClassOf ndt:Wall .
+
+ndt:SolidFloor rdfs:subClassOf ndt:Floor .
+
+data:pitchedroofat100060760493_fusion a ndt:Fusion ;
+    ies:isPartOf data:state_850538239262012102511465432748182 .
+
+data:state_850538239262012102511465432748182 a epc:BuildingWithEnergyRatingOfE ;
+    ies:hasCharacteristic data:quantity_1026a4f95d0c5cc1 ;
+    ies:inPeriod <http://iso.org/iso8601#2012-10-25> ;
+    ies:isStateOf data:building_100060760493 .
+
