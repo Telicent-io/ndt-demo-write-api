@@ -86,11 +86,7 @@ jena_url = f"{jenaProtocol}://{jenaURL}:{jenaPort}"
 def add_prefix(prefix,uri):
     prefix_dict[prefix] = uri
 
-def format_prefixes():
-    prefixes = ''
-    for prefix in prefix_dict:
-        prefixes = prefixes + "PREFIX "+prefix+": <"+prefix_dict[prefix]+">\n"
-    return prefixes
+
 
 access_client = AccessClient(access_url, dev_mode)
 prefix_dict = {}
@@ -107,6 +103,11 @@ add_prefix("ndt","http://nationaldigitaltwin.gov.uk/data#")
 add_prefix("gp","https://www.geoplace.co.uk/addresses-streets/location-data/the-uprn#")
 add_prefix("epc","http://gov.uk/government/organisations/department-for-levelling-up-housing-and-communities/ontology/epc#")
 
+def format_prefixes():
+    prefixes = ''
+    for prefix in prefix_dict:
+        prefixes = prefixes + "PREFIX "+prefix+": <"+prefix_dict[prefix]+">\n"
+    return prefixes
 
 def shorten(uri):
     for prefix in prefix_dict:
@@ -240,7 +241,7 @@ app = FastAPI(title="NDT Assessment Write-Back API",
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=True, 
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -275,13 +276,20 @@ def run_sparql_update(query:str,forwarding_headers:dict[str,str]={}, securityLab
             'Content-Type': 'application/sparql-update',
             **forwarding_headers
         }
-        requests.post(post_uri,headers=headers,data=prefixes+query)
+        try:
+            requests.post(post_uri,headers=headers,data=prefixes+query)
+        except exceptions.HTTPError as e: 
+            raise HTTPException(e.response.status_code)
     elif update_mode == "KAFKA":
         g = Graph()
         g.update(query)
         outData = g.serialize(format='nt')
-        record = Record(get_headers(sec_label.to_string()),None,outData)
-        knowledgeAdapter.send(record)
+        try: 
+            record = Record(get_headers(sec_label.to_string()),None,outData)
+            knowledgeAdapter.send(record)
+        except Exception as e: 
+            print(e)
+            raise e
     else:
         raise Exception("unknown update mode: "+update_mode)
 
@@ -513,7 +521,6 @@ def invalidate_flag(request:Request,invalid: InvalidateFlag):
         else: 
             raise HTTPException(500, f"Error calling Access, Internal Server Error")
     assessor, person = create_person_insert(user['user_id'], user["username"])
-  
     assessment_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
     assessment = data_uri_stub+str(uuid.uuid4())
     (ass_subclasses,ass_list) = get_subtypes(prefix_dict["ndt_ont"]+"AssessToBeFalse", get_forwarding_headers(request.headers))
@@ -521,9 +528,9 @@ def invalidate_flag(request:Request,invalid: InvalidateFlag):
     if invalid.assessmentTypeOverride != prefix_dict["ndt_ont"]+"AssessToBeFalse" and lengthen(invalid.assessmentTypeOverride) not in ass_subclasses:
         raise HTTPException(422,"assessmentTypeOverride must be a subclass of ndt_ont:AssessToBeFalse")
     query = f"""
-    {format_prefixes()}
+        {format_prefixes()}
         INSERT DATA {{
-            <{assessment}> a <{invalid.assessmentTypeOverride}> .
+            <{assessment}> a <{lengthen(invalid.assessmentTypeOverride)}> .
             <{assessment}> ies:assessor <{assessor}> .
             {person}
             <{assessment}> ies:assessed <{lengthen(invalid.flagUri)}> .
@@ -592,14 +599,14 @@ def post_flag_visit(request:Request,visited:IesEntity):
     query = f"""
         {format_prefixes()}
         INSERT DATA {{
-            <{flag_state}> ies:interestedIn <{visited.uri}> .
+            <{flag_state}> ies:interestedIn <{lengthen(visited.uri)}> .
             <{flag_state}> ies:isStateOf <{flagger}> .
             {person}
             <{flag_state}> ies:inPeriod <{flag_time}> .
             <{flag_state}> a ndt:InterestedInVisiting .
         }}
     """
-    run_sparql_update(query=query,securityLabel=visited.securityLabel)
+    run_sparql_update(query=query, forwarding_headers=get_forwarding_headers(request.headers),securityLabel=visited.securityLabel)
     return flag_state
 
 @app.post("/flag-to-investigate",description="Add a flag to an Entity instance as being worth investigating- URI of Entity must be provided", response_model=str)
@@ -622,15 +629,16 @@ def post_flag_visit(request:Request,visited:IesEntity):
     flag_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
     flag_state = data_uri_stub+str(uuid.uuid4())
     query = f"""
-     {format_prefixes()}
+        {format_prefixes()}
         INSERT DATA {{
-            <{flag_state}> ies:interestedIn <{visited.uri}> .
+            <{flag_state}> ies:interestedIn <{lengthen(visited.uri)}> .
             <{flag_state}> ies:isStateOf <{flagger}> .
             {person} 
             <{flag_state}> ies:inPeriod <{flag_time}> .
             <{flag_state}> a ndt:InterestedInInvestigating .
         }}
     """
+    print(query)
     run_sparql_update(query=query, forwarding_headers=get_forwarding_headers(request.headers),securityLabel=visited.securityLabel)
     return flag_state
 
