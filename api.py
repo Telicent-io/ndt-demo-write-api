@@ -329,7 +329,7 @@ def get_subtypes(super_class,headers:dict[str,str], exclude_super = None):
     sub_list = []
     for key in sub_classes:
         sub = sub_classes[key]
-        sub_list.append({"uri":key,"shortName":sub["shortName"],"superClasses":sub["superClasses"],description:sub["description"]})
+        sub_list.append({"uri":key,"shortName":sub["shortName"],"superClasses":sub["superClasses"],"description":sub["description"]})
     
     return sub_classes, sub_list
 
@@ -524,7 +524,7 @@ def invalidate_flag(request:Request,invalid: InvalidateFlag):
     assessment_time = "http://iso.org/iso8601#"+datetime.now().isoformat()
     assessment = data_uri_stub+str(uuid.uuid4())
     (ass_subclasses,ass_list) = get_subtypes(prefix_dict["ndt_ont"]+"AssessToBeFalse", get_forwarding_headers(request.headers))
-    # print(ass_subclasses)
+
     if invalid.assessmentTypeOverride != prefix_dict["ndt_ont"]+"AssessToBeFalse" and lengthen(invalid.assessmentTypeOverride) not in ass_subclasses:
         raise HTTPException(422,"assessmentTypeOverride must be a subclass of ndt_ont:AssessToBeFalse")
     query = f"""
@@ -638,7 +638,7 @@ def post_flag_visit(request:Request,visited:IesEntity):
             <{flag_state}> a ndt:InterestedInInvestigating .
         }}
     """
-    print(query)
+   
     run_sparql_update(query=query, forwarding_headers=get_forwarding_headers(request.headers),securityLabel=visited.securityLabel)
     return flag_state
 

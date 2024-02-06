@@ -11,6 +11,7 @@ class AccessClient():
 
         if self.dev:
             return {"username": "Test User1", "user_id": "1234-5678-99ab-cdef"}
+        
         res = requests.get(f"{self.connection_string}/user-info/self", headers=get_headers(headers))
 
         res.raise_for_status()
