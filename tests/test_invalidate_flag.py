@@ -1,6 +1,7 @@
 
 from unittest import TestCase, mock
 import os
+os.environ['UPDATE_MODE'] = "FILE"
 import api
 from api import format_prefixes
 from fastapi.testclient import TestClient

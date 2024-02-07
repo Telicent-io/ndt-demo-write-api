@@ -1,4 +1,6 @@
 import unittest
+import os
+os.environ['UPDATE_MODE'] = "FILE"
 from api import create_person_insert, data_uri_stub, format_prefixes
 from access import AccessClient
 from rdflib import Graph
